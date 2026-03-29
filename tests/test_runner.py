@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -168,6 +169,7 @@ class TestSetTerminalTitle:
         assert "\033]0;My Tool\a" in written
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only batch file handling")
 class TestBatchFileLaunch:
     """Tests for .bat/.cmd file handling on Windows."""
 

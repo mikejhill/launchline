@@ -33,14 +33,14 @@ class KeyReader:
 
         if timeout is not None:
             deadline = time.monotonic() + timeout
-            while not msvcrt.kbhit():
+            while not msvcrt.kbhit():  # type: ignore[attr-defined]
                 if time.monotonic() >= deadline:
                     return ""
                 time.sleep(0.01)
 
-        ch = msvcrt.getwch()
+        ch: str = msvcrt.getwch()  # type: ignore[attr-defined]
         if ch in ("\x00", "\xe0"):
-            ch2 = msvcrt.getwch()
+            ch2: str = msvcrt.getwch()  # type: ignore[attr-defined]
             if ch2 == "H":
                 return "up"
             if ch2 == "P":
@@ -53,8 +53,8 @@ class KeyReader:
         if ch == "\x1b":
             # Kitty protocol sends CSI sequences starting with ESC [.
             # Peek to see if this is a CSI sequence rather than bare Escape.
-            if msvcrt.kbhit():
-                ch2 = msvcrt.getwch()
+            if msvcrt.kbhit():  # type: ignore[attr-defined]
+                ch2 = msvcrt.getwch()  # type: ignore[attr-defined]
                 if ch2 == "[":
                     return KeyReader._read_csi_sequence_windows()
                 # Unknown ESC sequence — discard the second char
@@ -94,11 +94,11 @@ class KeyReader:
         buf: list[str] = []
         deadline = time.monotonic() + 0.1
         while True:
-            while not msvcrt.kbhit():
+            while not msvcrt.kbhit():  # type: ignore[attr-defined]
                 if time.monotonic() >= deadline:
                     return ""  # incomplete sequence
                 time.sleep(0.001)
-            ch = msvcrt.getwch()
+            ch: str = msvcrt.getwch()  # type: ignore[attr-defined]
             if ch.isdigit() or ch in ";:":
                 buf.append(ch)
             elif ch.isalpha() or ch in "~u":
