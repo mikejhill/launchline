@@ -2,6 +2,9 @@
 
 > **Note:** This project was built entirely with [GitHub Copilot](https://github.com/features/copilot) as a demonstration of AI-assisted software development.
 
+[![CI](https://github.com/mikejhill/LaunchLine/actions/workflows/ci.yml/badge.svg)](https://github.com/mikejhill/LaunchLine/actions/workflows/ci.yml)
+[![Publish](https://github.com/mikejhill/LaunchLine/actions/workflows/publish.yml/badge.svg)](https://github.com/mikejhill/LaunchLine/actions/workflows/publish.yml)
+
 A lightweight terminal launcher for interactive CLI tools. Define your frequently
 used commands in a TOML config file, then pick them from a fuzzy-searchable menu
 instead of remembering flags and paths.
