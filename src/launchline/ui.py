@@ -1,4 +1,9 @@
-"""TUI rendering and input loop."""
+"""TUI rendering and input loop for the LaunchLine launcher.
+
+This module provides :class:`LaunchLineUI`, which drives the interactive
+terminal interface: rendering the entry list, handling keyboard input,
+fuzzy filtering, viewport scrolling, and alternate-screen management.
+"""
 
 from __future__ import annotations
 
@@ -15,9 +20,14 @@ from launchline.keys import KeyReader
 logger = logging.getLogger(__name__)
 
 _MAX_LIST_HEIGHT = 10
+"""Maximum number of entry rows to display before scrolling."""
+
 # header(4) + cwd(1) + sep_above(1) + prompt(1) + sep_below(1) + footer(1)
 _CHROME_LINES = 9
+"""Fixed number of non-entry rows consumed by the UI chrome."""
+
 _DEFAULT_SIZE = os.terminal_size((80, 24))
+"""Fallback terminal dimensions when the real size cannot be detected."""
 
 
 def _get_terminal_size() -> os.terminal_size:
@@ -34,7 +44,11 @@ def _get_terminal_size() -> os.terminal_size:
 
 
 class _UserExitError(Exception):
-    """Internal signal: the user wants to quit the launcher."""
+    """Internal signal raised when the user wants to quit the launcher.
+
+    This exception is caught inside :meth:`LaunchLineUI.run` and never
+    propagates to callers.
+    """
 
 
 # ---------------------------------------------------------------------------
@@ -44,13 +58,19 @@ class _UserExitError(Exception):
 
 @dataclass
 class _NumberedEntry:
-    """An entry paired with its display number."""
+    """An entry paired with its 1-based display number.
+
+    Attributes:
+        number: Ordinal display number (1-based for entries, 0 for exit).
+        entry: The underlying configuration entry.
+    """
 
     number: int
     entry: EntryConfig
 
 
 _EXIT_ENTRY = EntryConfig(name="Exit", command="", description="Close the launcher")
+"""Sentinel entry representing the 'Exit' option in the launcher menu."""
 
 
 # ---------------------------------------------------------------------------
@@ -59,7 +79,13 @@ _EXIT_ENTRY = EntryConfig(name="Exit", command="", description="Close the launch
 
 
 class LaunchLineUI:
-    """Interactive TUI for selecting a CLI tool to launch."""
+    """Interactive TUI for selecting a CLI tool to launch.
+
+    Renders a bordered header, a fuzzy-search prompt, a scrollable entry
+    list with numbered shortcuts, and a footer with keybinding hints.
+    The entire UI runs inside the terminal's alternate screen buffer so
+    that normal scrollback is preserved.
+    """
 
     def __init__(
         self,
@@ -67,6 +93,15 @@ class LaunchLineUI:
         *,
         _key_reader: Callable[[], str] | None = None,
     ) -> None:
+        """Initialise the UI with a launcher configuration.
+
+        Args:
+            config: Application configuration containing the entries to
+                display and behavioural settings.
+            _key_reader: Optional override for the key-reading callable.
+                Defaults to :meth:`KeyReader.read_key` with a 50 ms
+                timeout.  Primarily used for testing.
+        """
         self._config = config
         self._all_entries: tuple[_NumberedEntry, ...] = tuple(
             _NumberedEntry(number=i + 1, entry=e) for i, e in enumerate(config.entries)
@@ -132,7 +167,11 @@ class LaunchLineUI:
     # -- display list (visible + exit) -------------------------------------
 
     def _display_list(self) -> list[_NumberedEntry]:
-        """Visible entries plus the exit entry at the end (when it matches)."""
+        """Return the full display list: visible entries plus exit (if shown).
+
+        The exit entry is always appended at the end when it matches the
+        current filter.
+        """
         if self._exit_visible:
             return [*self._visible, self._exit_entry]
         return list(self._visible)
@@ -309,7 +348,16 @@ class LaunchLineUI:
     def _on_char(self, ch: str) -> EntryConfig | None:
         """Handle a printable character input.
 
-        Returns an entry to launch (immediate selection) or None.
+        Supports immediate numeric selection (single-digit when ≤9
+        entries), '0' for exit, and appending to the fuzzy query.
+        Triggers auto-launch when a numeric query narrows to one match.
+
+        Args:
+            ch: A single printable character.
+
+        Returns:
+            An ``EntryConfig`` to launch immediately, or ``None`` to
+            continue the input loop.
         """
         # "0" with no active query selects exit (when exit is shown)
         if not self._query and ch == "0" and self._show_exit:
@@ -335,7 +383,15 @@ class LaunchLineUI:
     # -- filtering ----------------------------------------------------------
 
     def _update_filter(self) -> None:
-        """Recompute the visible entry list from the current query."""
+        """Recompute the visible entry list from the current query.
+
+        Three modes:
+        - Empty query: show all entries.
+        - Numeric query: prefix-match against entry display numbers.
+        - Text query: fuzzy-match against entry names, sorted by score.
+
+        Also resets the highlight and viewport to the top.
+        """
         if not self._query:
             self._visible = list(self._all_entries)
             self._exit_visible = self._show_exit
@@ -364,13 +420,21 @@ class LaunchLineUI:
     # -- viewport -----------------------------------------------------------
 
     def _max_visible_entries(self) -> int:
-        """Max entry rows that fit in the terminal (including exit)."""
+        """Calculate the maximum entry rows that fit in the terminal.
+
+        Accounts for the fixed UI chrome (header, prompt, separators,
+        footer) and caps the result at ``_MAX_LIST_HEIGHT``.
+        """
         term_height = _get_terminal_size().lines
         available = max(1, term_height - _CHROME_LINES)
         return min(available, _MAX_LIST_HEIGHT)
 
     def _ensure_highlight_visible(self) -> None:
-        """Scroll the viewport so the highlighted entry is visible."""
+        """Scroll the viewport so the highlighted entry remains on screen.
+
+        Adjusts ``_viewport_offset`` up or down as needed to keep the
+        highlighted index within the visible window.
+        """
         max_vis = self._max_visible_entries()
         if self._highlight_idx < self._viewport_offset:
             self._viewport_offset = self._highlight_idx
@@ -379,17 +443,24 @@ class LaunchLineUI:
 
     # -- rendering ----------------------------------------------------------
 
-    # ANSI helpers
-    _HEADER_ACCENT = "\033[38;5;69m"
-    _ACTIVE_ACCENT = "\033[92m"
-    _GRAY = "\033[90m"
-    _DIM = "\033[2m"
-    _BOLD = "\033[1m"
-    _WHITE = "\033[97m"
-    _RESET = "\033[0m"
+    # ANSI SGR colour codes used throughout the renderer.
+    _HEADER_ACCENT = "\033[38;5;69m"  # Cornflower blue (header borders)
+    _ACTIVE_ACCENT = "\033[92m"  # Bright green (highlighted entry)
+    _GRAY = "\033[90m"  # Dark gray (descriptions, chrome)
+    _DIM = "\033[2m"  # Dim attribute
+    _BOLD = "\033[1m"  # Bold attribute
+    _WHITE = "\033[97m"  # Bright white (query text, title)
+    _RESET = "\033[0m"  # Reset all attributes
 
     def _render(self) -> None:
-        """Redraw the entire launcher screen."""
+        """Redraw the entire launcher screen in a single buffered write.
+
+        Composes the full screen layout using ANSI escape sequences:
+        bordered header, current working directory, search prompt with
+        ghost-text autocomplete hint, scrollable entry list with an
+        optional scrollbar, and a footer with keybinding hints.  The
+        cursor is positioned on the prompt line after rendering.
+        """
         tw = _get_terminal_size().columns
         th = _get_terminal_size().lines
         max_vis = self._max_visible_entries()

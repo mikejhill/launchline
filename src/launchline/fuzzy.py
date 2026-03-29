@@ -1,10 +1,19 @@
-"""Fuzzy substring matching with scoring."""
+"""Fuzzy substring matching with scoring.
+
+Provides :class:`FuzzyMatcher`, which scores how well a short query
+string matches against a longer candidate string using an ordered,
+non-contiguous character-matching algorithm with bonuses for runs and
+word-boundary alignment.
+"""
 
 from __future__ import annotations
 
 
 class FuzzyMatcher:
-    """Fuzzy substring matching with scoring."""
+    """Fuzzy substring matching with scoring.
+
+    All methods are static; the class serves as a logical namespace.
+    """
 
     @staticmethod
     def score(query: str, candidate: str) -> int | None:

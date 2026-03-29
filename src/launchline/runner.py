@@ -1,4 +1,9 @@
-"""Subprocess execution, screen clearing, and post-exit logic."""
+"""Subprocess execution, screen clearing, and terminal title management.
+
+This module provides :class:`EntryRunner`, which is responsible for
+launching user-configured entries as subprocesses, managing the terminal
+screen between launches, and setting the terminal title bar text.
+"""
 
 from __future__ import annotations
 
@@ -15,9 +20,20 @@ logger = logging.getLogger(__name__)
 
 
 class EntryRunner:
-    """Launches a configured entry as a subprocess."""
+    """Launches a configured entry as a subprocess.
+
+    Handles platform-specific command wrapping (e.g. ``cmd.exe /c`` for
+    batch files on Windows), environment variable expansion, and
+    optional screen clearing between launches.
+    """
 
     def __init__(self, config: LaunchLineConfig) -> None:
+        """Initialise the runner with the application configuration.
+
+        Args:
+            config: Top-level launcher configuration controlling
+                behaviours such as ``clear_on_launch``.
+        """
         self._config = config
 
     def launch(self, entry: EntryConfig) -> int:

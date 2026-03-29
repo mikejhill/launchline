@@ -1,4 +1,11 @@
-"""Platform-aware single-keypress reader and Kitty protocol decoder."""
+"""Platform-aware single-keypress reader and Kitty protocol decoder.
+
+This module provides :class:`KeyReader`, which reads individual
+keypresses from the terminal on both Windows (via ``msvcrt``) and
+Unix/macOS (via ``termios`` + ``select``).  It also decodes the
+`Kitty keyboard protocol <https://sw.kovidgoyal.net/kitty/keyboard-protocol/>`_
+CSI sequences into normalised key names.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +15,11 @@ import time
 
 
 class KeyReader:
-    """Platform-aware single-keypress reader."""
+    """Platform-aware single-keypress reader.
+
+    All public and private methods are static; the class serves as a
+    logical namespace rather than requiring instantiation.
+    """
 
     @staticmethod
     def read_key(timeout: float | None = None) -> str:
@@ -29,6 +40,16 @@ class KeyReader:
 
     @staticmethod
     def _read_key_windows(timeout: float | None = None) -> str:
+        r"""Read a single keypress on Windows using ``msvcrt``.
+
+        Translates control codes and two-byte extended key sequences
+        (``\x00`` / ``\xe0`` prefix) into normalised key names.  Also
+        detects ESC-initiated CSI sequences from the Kitty protocol.
+
+        Args:
+            timeout: Optional timeout in seconds.  Returns ``""`` if no
+                key is pressed before the deadline.
+        """
         import msvcrt
 
         if timeout is not None:
@@ -110,6 +131,16 @@ class KeyReader:
     def _read_key_unix(
         timeout: float | None = None,
     ) -> str:  # pragma: no cover — not testable on Windows CI
+        """Read a single keypress on Unix/macOS using ``termios``.
+
+        Switches the terminal to raw mode, reads one character, peeks
+        for ESC-initiated multi-byte sequences (CSI, Alt combos), and
+        restores the original terminal settings before returning.
+
+        Args:
+            timeout: Optional timeout in seconds.  Returns ``""`` if no
+                key is pressed before the deadline.
+        """
         import select
         import termios
         import tty
@@ -195,7 +226,17 @@ class KeyReader:
 
     @staticmethod
     def _dispatch_csi(params: str, terminator: str) -> str:
-        """Map a parsed CSI sequence to a normalised key name."""
+        """Map a parsed CSI sequence to a normalised key name.
+
+        Args:
+            params: Parameter bytes between ``CSI`` and the terminator
+                (e.g. ``"1;5"``).
+            terminator: The final character of the sequence (e.g. ``"A"``,
+                ``"u"``).
+
+        Returns:
+            A normalised key name, or ``""`` for unrecognised sequences.
+        """
         if terminator == "A":
             return "up"
         if terminator == "B":
