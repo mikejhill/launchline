@@ -1,6 +1,7 @@
 # LaunchLine
 
-> **Note:** This project was built entirely with [GitHub Copilot](https://github.com/features/copilot) as a demonstration of AI-assisted software development.
+> [!NOTE]
+> This project was created with the assistance of AI.
 
 [![CI](https://github.com/mikejhill/LaunchLine/actions/workflows/ci.yml/badge.svg)](https://github.com/mikejhill/LaunchLine/actions/workflows/ci.yml)
 [![Publish](https://github.com/mikejhill/LaunchLine/actions/workflows/publish.yml/badge.svg)](https://github.com/mikejhill/LaunchLine/actions/workflows/publish.yml)
