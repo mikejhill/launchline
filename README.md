@@ -71,25 +71,25 @@ Config file format is [TOML](https://toml.io). The file has an optional
 
 ### `[settings]`
 
-| Key              | Type   | Default       | Description                                         |
-| ---------------- | ------ | ------------- | --------------------------------------------------- |
-| `on_exit`        | string | `"restart"`   | Behavior after a launched tool exits: `restart` or `exit` |
-| `title`          | string | `"LaunchLine"`| Window/tab title shown while the launcher is active |
-| `clear_on_launch`| bool   | `true`        | Clear terminal before launching an entry            |
-| `show_exit`      | bool   | `true`        | Show the **Exit** entry (shortcut `0`) in the menu  |
+| Key               | Type   | Default        | Description                                               |
+| ----------------- | ------ | -------------- | --------------------------------------------------------- |
+| `on_exit`         | string | `"restart"`    | Behavior after a launched tool exits: `restart` or `exit` |
+| `title`           | string | `"LaunchLine"` | Window/tab title shown while the launcher is active       |
+| `clear_on_launch` | bool   | `true`         | Clear terminal before launching an entry                  |
+| `show_exit`       | bool   | `true`         | Show the **Exit** entry (shortcut `0`) in the menu        |
 
 ### `[[entries]]`
 
 Each `[[entries]]` table defines one launchable tool:
 
-| Key                | Type            | Required | Default | Description                                    |
-| ------------------ | --------------- | -------- | ------- | ---------------------------------------------- |
-| `name`             | string          | yes      | —       | Display name shown in the menu                 |
-| `command`          | string          | yes      | —       | Executable to run                              |
-| `args`             | list of strings | no       | `[]`    | Arguments passed to the command                |
-| `description`      | string          | no       | `""`    | Short description shown next to the name       |
-| `working_directory`| string          | no       | —       | Working directory for the subprocess           |
-| `env`              | table           | no       | `{}`    | Extra environment variables (`KEY = "value"`)  |
+| Key                 | Type            | Required | Default | Description                                   |
+| ------------------- | --------------- | -------- | ------- | --------------------------------------------- |
+| `name`              | string          | yes      | —       | Display name shown in the menu                |
+| `command`           | string          | yes      | —       | Executable to run                             |
+| `args`              | list of strings | no       | `[]`    | Arguments passed to the command               |
+| `description`       | string          | no       | `""`    | Short description shown next to the name      |
+| `working_directory` | string          | no       | —       | Working directory for the subprocess          |
+| `env`               | table           | no       | `{}`    | Extra environment variables (`KEY = "value"`) |
 
 ### Validation Rules
 
@@ -129,16 +129,16 @@ env = { TERM = "xterm-256color" }
 
 ## Usage
 
-| Key                | Action                                   |
-| ------------------ | ---------------------------------------- |
-| `1`–`9`           | Launch entry by number                   |
-| `0`               | Exit (when `show_exit` is enabled)       |
-| Type any text      | Fuzzy-filter the entry list              |
-| `Up` / `Down`      | Move highlight                           |
-| `Enter`            | Launch highlighted entry                 |
-| `Escape`           | Clear filter (or exit if filter is empty) |
-| `Backspace`        | Delete last character from filter        |
-| `Ctrl+U`           | Clear filter                             |
+| Key           | Action                                    |
+| ------------- | ----------------------------------------- |
+| `1`–`9`       | Launch entry by number                    |
+| `0`           | Exit (when `show_exit` is enabled)        |
+| Type any text | Fuzzy-filter the entry list               |
+| `Up` / `Down` | Move highlight                            |
+| `Enter`       | Launch highlighted entry                  |
+| `Escape`      | Clear filter (or exit if filter is empty) |
+| `Backspace`   | Delete last character from filter         |
+| `Ctrl+U`      | Clear filter                              |
 
 ## Windows Terminal Integration
 
