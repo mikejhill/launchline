@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "launchline"
+version = "0.1.0"
+description = "A lightweight Windows Terminal launcher for interactive CLI tools."
+requires-python = ">=3.12"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "mypy>=1.10",
+    "pytest>=8.0",
+    "ruff>=0.7",
+]
+
+[project.scripts]
+launchline = "launchline.__main__:main"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "N", "UP", "B", "SIM", "RUF", "D", "ANN", "PT", "RET", "ARG"]
+ignore = ["D100", "D104", "D107"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["D102"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["launchline"]
+
+[tool.mypy]
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
