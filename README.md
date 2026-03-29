@@ -1,5 +1,7 @@
 # LaunchLine
 
+> **Note:** This project was built entirely with [GitHub Copilot](https://github.com/features/copilot) as a demonstration of AI-assisted software development.
+
 A lightweight terminal launcher for interactive CLI tools. Define your frequently
 used commands in a TOML config file, then pick them from a fuzzy-searchable menu
 instead of remembering flags and paths.
