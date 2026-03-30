@@ -153,7 +153,7 @@ class TestLoadConfig:
             ConfigLoader.load(cfg)
 
     def test_command_as_array(self, tmp_path: Path) -> None:
-        """command = ["exe", "arg1", "arg2"] splits into command + args."""
+        """Command as list splits into executable + args."""
         cfg = tmp_path / "config.toml"
         cfg.write_text(
             '[[entries]]\nname = "X"\ncommand = ["ssh", "-t", "my server"]\n',
@@ -168,7 +168,7 @@ class TestLoadConfig:
         )
 
     def test_command_array_with_extra_args(self, tmp_path: Path) -> None:
-        """command array args are prepended before explicit args."""
+        """Command array args are prepended before explicit args."""
         cfg = tmp_path / "config.toml"
         cfg.write_text(
             '[[entries]]\nname = "X"\n'
