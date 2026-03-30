@@ -64,6 +64,12 @@ class CommandLineInterface:
             default=False,
             help="Print the path to the bundled icon and exit.",
         )
+        parser.add_argument(
+            "--config-path",
+            action="store_true",
+            default=False,
+            help="Print the path to the active config file and exit.",
+        )
 
         args = parser.parse_args(argv)
         args.log_level = getattr(logging, args.log_level)

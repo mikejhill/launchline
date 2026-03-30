@@ -99,6 +99,20 @@ class TestParseArgs:
             f"Expected icon_path=False by default, got {args.icon_path!r}"
         )
 
+    def test_config_path_flag_parsed(self) -> None:
+        """--config-path flag is stored as boolean True."""
+        args = CommandLineInterface.parse_args(["--config-path"])
+        assert args.config_path is True, (
+            f"Expected config_path=True, got {args.config_path!r}"
+        )
+
+    def test_config_path_defaults_to_false(self) -> None:
+        """config_path defaults to False when not specified."""
+        args = CommandLineInterface.parse_args([])
+        assert args.config_path is False, (
+            f"Expected config_path=False by default, got {args.config_path!r}"
+        )
+
 
 class TestIconPath:
     """Tests for CommandLineInterface.icon_path."""
@@ -108,3 +122,42 @@ class TestIconPath:
         path = CommandLineInterface.icon_path()
         assert path.exists(), f"Bundled icon not found at {path}"
         assert path.suffix == ".ico", f"Expected .ico file, got {path.suffix}"
+
+
+class TestConfigPathFlag:
+    """Tests for --config-path flag behaviour via main()."""
+
+    def test_prints_explicit_config_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """--config-path with --config prints the explicit path."""
+        cfg = tmp_path / "custom.toml"
+        cfg.write_text("[settings]\n[[entries]]\nname='x'\ncommand='y'\n")
+
+        from launchline.__main__ import main
+
+        monkeypatch.setattr(
+            "sys.argv", ["launchline", "--config-path", "--config", str(cfg)],
+        )
+        main()
+        assert capsys.readouterr().out.strip() == str(cfg), (
+            "Expected --config-path to print the explicit config file path"
+        )
+
+    def test_prints_default_config_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """--config-path without --config resolves via standard lookup."""
+        cfg = tmp_path / "config.toml"
+        cfg.write_text("[settings]\n[[entries]]\nname='x'\ncommand='y'\n")
+
+        from launchline.__main__ import main
+        from launchline.config import ConfigLoader
+
+        monkeypatch.setattr(ConfigLoader, "DEFAULT_PATH", cfg)
+        monkeypatch.setattr("sys.argv", ["launchline", "--config-path"])
+        monkeypatch.delenv("LAUNCHLINE_CONFIG", raising=False)
+        main()
+        assert capsys.readouterr().out.strip() == str(cfg), (
+            "Expected --config-path to print the default config file path"
+        )

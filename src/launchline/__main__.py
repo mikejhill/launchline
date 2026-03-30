@@ -80,6 +80,11 @@ def main() -> None:
         print(CommandLineInterface.icon_path())
         return
 
+    if args.config_path:
+        config_path = ConfigLoader.resolve_path(args.config)
+        print(config_path)
+        return
+
     logging.basicConfig(
         level=args.log_level,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
