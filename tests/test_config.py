@@ -152,6 +152,63 @@ class TestLoadConfig:
         with pytest.raises(ConfigurationError, match="'args' must be a list"):
             ConfigLoader.load(cfg)
 
+    def test_command_as_array(self, tmp_path: Path) -> None:
+        """command = ["exe", "arg1", "arg2"] splits into command + args."""
+        cfg = tmp_path / "config.toml"
+        cfg.write_text(
+            '[[entries]]\nname = "X"\ncommand = ["ssh", "-t", "my server"]\n',
+            encoding="utf-8",
+        )
+        config = ConfigLoader.load(cfg)
+        assert config.entries[0].command == "ssh", (
+            f"Expected command='ssh', got {config.entries[0].command!r}"
+        )
+        assert config.entries[0].args == ("-t", "my server"), (
+            f"Expected args=('-t', 'my server'), got {config.entries[0].args!r}"
+        )
+
+    def test_command_array_with_extra_args(self, tmp_path: Path) -> None:
+        """command array args are prepended before explicit args."""
+        cfg = tmp_path / "config.toml"
+        cfg.write_text(
+            '[[entries]]\nname = "X"\n'
+            'command = ["ssh", "-t"]\n'
+            'args = ["my server", "bash"]\n',
+            encoding="utf-8",
+        )
+        config = ConfigLoader.load(cfg)
+        assert config.entries[0].command == "ssh", (
+            f"Expected command='ssh', got {config.entries[0].command!r}"
+        )
+        assert config.entries[0].args == ("-t", "my server", "bash"), (
+            f"Expected combined args, got {config.entries[0].args!r}"
+        )
+
+    def test_command_array_single_element(self, tmp_path: Path) -> None:
+        """Single-element command array is valid."""
+        cfg = tmp_path / "config.toml"
+        cfg.write_text(
+            '[[entries]]\nname = "X"\ncommand = ["pwsh"]\n',
+            encoding="utf-8",
+        )
+        config = ConfigLoader.load(cfg)
+        assert config.entries[0].command == "pwsh", (
+            f"Expected command='pwsh', got {config.entries[0].command!r}"
+        )
+        assert config.entries[0].args == (), (
+            f"Expected empty args, got {config.entries[0].args!r}"
+        )
+
+    def test_command_empty_array_rejected(self, tmp_path: Path) -> None:
+        """Empty command array is an error."""
+        cfg = tmp_path / "config.toml"
+        cfg.write_text(
+            '[[entries]]\nname = "X"\ncommand = []\n',
+            encoding="utf-8",
+        )
+        with pytest.raises(ConfigurationError, match="must not be empty"):
+            ConfigLoader.load(cfg)
+
     def test_rejects_invalid_env_type(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
         cfg.write_text(

@@ -188,7 +188,19 @@ description = "PowerShell 7"
         entries: list[EntryConfig] = []
         for i, entry_raw in enumerate(raw_entries, 1):
             name = entry_raw.get("name", "")
-            command = entry_raw.get("command", "")
+            raw_command = entry_raw.get("command", "")
+
+            if isinstance(raw_command, list):
+                if not raw_command:
+                    raise ConfigurationError(
+                        f"Entry {i}: 'command' list must not be empty."
+                    )
+                command = str(raw_command[0])
+                command_args = tuple(str(a) for a in raw_command[1:])
+            else:
+                command = str(raw_command)
+                command_args = ()
+
             if not name or not command:
                 raise ConfigurationError(
                     f"Entry {i}: 'name' and 'command' are required."
@@ -199,6 +211,8 @@ description = "PowerShell 7"
                 raise ConfigurationError(
                     f"Entry {i}: 'args' must be a list of strings."
                 )
+
+            combined_args = command_args + tuple(str(a) for a in raw_args)
 
             wd_raw = entry_raw.get("working_directory")
             wd: Path | None = None
@@ -221,8 +235,8 @@ description = "PowerShell 7"
             entries.append(
                 EntryConfig(
                     name=str(name),
-                    command=str(command),
-                    args=tuple(str(a) for a in raw_args),
+                    command=command,
+                    args=combined_args,
                     description=str(entry_raw.get("description", "")),
                     working_directory=wd,
                     env={str(k): str(v) for k, v in raw_env.items()},

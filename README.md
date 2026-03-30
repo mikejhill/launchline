@@ -101,21 +101,24 @@ Config file format is [TOML](https://toml.io). The file has an optional
 
 Each `[[entries]]` table defines one launchable tool:
 
-| Key                 | Type            | Required | Default | Description                                                    |
-| ------------------- | --------------- | -------- | ------- | -------------------------------------------------------------- |
-| `name`              | string          | yes      | —       | Display name shown in the menu                                 |
-| `command`           | string          | yes      | —       | Executable to run                                              |
-| `args`              | list of strings | no       | `[]`    | Arguments passed to the command                                |
-| `description`       | string          | no       | `""`    | Short description shown next to the name                       |
-| `working_directory` | string          | no       | —       | Working directory for the subprocess                           |
-| `env`               | table           | no       | `{}`    | Extra environment variables (`KEY = "value"`)                  |
+| Key                 | Type                      | Required | Default | Description                                                    |
+| ------------------- | ------------------------- | -------- | ------- | -------------------------------------------------------------- |
+| `name`              | string                    | yes      | —       | Display name shown in the menu                                 |
+| `command`           | string or list of strings | yes      | —       | Executable to run (with optional inline arguments)             |
+| `args`              | list of strings           | no       | `[]`    | Additional arguments appended after any inline command args    |
+| `description`       | string                    | no       | `""`    | Short description shown next to the name                       |
+| `working_directory` | string                    | no       | —       | Working directory for the subprocess                           |
+| `env`               | table                     | no       | `{}`    | Extra environment variables (`KEY = "value"`)                  |
 
 ### Validation Rules
 
 - At least one `[[entries]]` table is required.
 - Every entry must have both `name` and `command`.
+- `command` may be a string (`"pwsh"`) or a list (`["ssh", "-t", "host"]`).
+  When a list, the first element is the executable and the rest are arguments.
 - `on_exit` must be `"restart"` or `"exit"`.
-- `args` must be a list (not a bare string).
+- `args` must be a list (not a bare string). These are appended after any
+  arguments provided inline in a `command` list.
 - `env` must be a TOML table (not a string or list).
 - If `working_directory` does not exist at load time, it is silently reset to
   `None` (a warning is logged).
@@ -146,6 +149,10 @@ name = "PowerShell"
 command = "pwsh"
 args = ["-NoProfile"]
 env = { TERM = "xterm-256color" }
+
+[[entries]]
+name = "Remote Server"
+command = ["ssh", "-t", "my server", "bash"]
 ```
 
 ## Usage
