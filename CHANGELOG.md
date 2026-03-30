@@ -7,13 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Reverted array syntax for `command` config key; `command` is string-only,
+  use `args` for arguments
+
 ## [0.2.0] - 2026-03-30
 
 ### Added
 
-- `command` config key now accepts a list of strings (e.g.,
-  `command = ["ssh", "-t", "my server"]`) for easier argument handling,
-  especially with values containing spaces
 - `--config-path` CLI flag to print the active configuration file path
 
 ### Fixed
