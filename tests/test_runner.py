@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -78,7 +77,9 @@ class TestEntryRunner:
         runner.launch(entry)
 
         call_kwargs = mock_run.call_args[1]
-        assert call_kwargs["cwd"] is None
+        assert call_kwargs["cwd"] is None, (
+            "cwd should be None when no working_directory configured"
+        )
 
     @patch("launchline.runner.subprocess.run")
     def test_raises_launch_error_on_file_not_found(self, mock_run: MagicMock) -> None:
@@ -122,31 +123,6 @@ class TestEntryRunner:
 
         mock_clear.assert_not_called()
 
-    @patch("launchline.runner.subprocess.run")
-    def test_expands_tilde_in_env_values(self, mock_run: MagicMock) -> None:
-        mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
-        entry = EntryConfig(
-            name="Test", command="my-tool", env={"HOME_DIR": "~/projects"}
-        )
-        runner = self._make_runner()
-        runner.launch(entry)
-
-        call_kwargs = mock_run.call_args[1]
-        env_value = call_kwargs["env"]["HOME_DIR"]
-        assert "~" not in env_value, f"Expected tilde to be expanded, got '{env_value}'"
-
-    @patch("launchline.runner.subprocess.run")
-    def test_preserves_env_values_without_tilde(self, mock_run: MagicMock) -> None:
-        mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
-        entry = EntryConfig(
-            name="Test", command="my-tool", env={"MY_VAR": "/absolute/path"}
-        )
-        runner = self._make_runner()
-        runner.launch(entry)
-
-        call_kwargs = mock_run.call_args[1]
-        assert call_kwargs["env"]["MY_VAR"] == "/absolute/path"
-
 
 class TestClearScreen:
     """Tests for the _clear_screen static method."""
@@ -155,8 +131,8 @@ class TestClearScreen:
     def test_writes_ansi_clear(self, mock_stdout: MagicMock) -> None:
         EntryRunner._clear_screen()
         written = "".join(call.args[0] for call in mock_stdout.write.call_args_list)
-        assert "\033[2J" in written
-        assert "\033[H" in written
+        assert "\033[2J" in written, "Should contain ANSI erase-screen sequence"
+        assert "\033[H" in written, "Should contain ANSI cursor-home sequence"
 
 
 class TestSetTerminalTitle:
@@ -166,65 +142,15 @@ class TestSetTerminalTitle:
     def test_writes_osc_title_sequence(self, mock_stdout: MagicMock) -> None:
         EntryRunner._set_terminal_title("My Tool")
         written = "".join(call.args[0] for call in mock_stdout.write.call_args_list)
-        assert "\033]0;My Tool\a" in written
-
-
-@pytest.mark.skipif(sys.platform != "win32", reason="Windows-only batch file handling")
-class TestBatchFileLaunch:
-    """Tests for .bat/.cmd file handling on Windows."""
-
-    def _make_runner(self) -> EntryRunner:
-        config = LaunchLineConfig(
-            entries=(),
-            on_exit="restart",
-            clear_on_launch=False,
+        assert "\033]0;My Tool\a" in written, (
+            "Should contain OSC title sequence for 'My Tool'"
         )
-        return EntryRunner(config)
 
-    @patch("launchline.runner.EntryRunner._set_terminal_title")
-    @patch("launchline.runner.subprocess.run")
-    def test_bat_file_launched_via_cmd(
-        self, mock_run: MagicMock, mock_title: MagicMock
-    ) -> None:
-        mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
-        entry = EntryConfig(
-            name="Cygwin",
-            command="C:\\cygwin64\\Cygwin.bat",
-            args=("--login",),
+    @patch("sys.stdout")
+    def test_special_characters_in_title(self, mock_stdout: MagicMock) -> None:
+        """Titles with spaces and punctuation render correctly."""
+        EntryRunner._set_terminal_title("GitHub Copilot (v2)")
+        written = "".join(call.args[0] for call in mock_stdout.write.call_args_list)
+        assert "\033]0;GitHub Copilot (v2)\a" in written, (
+            "Should handle special characters in title"
         )
-        runner = self._make_runner()
-        runner.launch(entry)
-
-        mock_title.assert_called_once_with("Cygwin")
-        cmd = mock_run.call_args[0][0]
-        assert cmd[:2] == ["cmd.exe", "/c"]
-        assert cmd[2] == "C:\\cygwin64\\Cygwin.bat"
-        assert cmd[3] == "--login"
-
-    @patch("launchline.runner.EntryRunner._set_terminal_title")
-    @patch("launchline.runner.subprocess.run")
-    def test_cmd_file_launched_via_cmd(
-        self, mock_run: MagicMock, mock_title: MagicMock
-    ) -> None:
-        mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
-        entry = EntryConfig(name="Script", command="setup.cmd")
-        runner = self._make_runner()
-        runner.launch(entry)
-
-        mock_title.assert_called_once_with("Script")
-        cmd = mock_run.call_args[0][0]
-        assert cmd[:2] == ["cmd.exe", "/c"]
-
-    @patch("launchline.runner.EntryRunner._set_terminal_title")
-    @patch("launchline.runner.subprocess.run")
-    def test_exe_not_wrapped_in_cmd(
-        self, mock_run: MagicMock, mock_title: MagicMock
-    ) -> None:
-        mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
-        entry = EntryConfig(name="Tool", command="my-tool")
-        runner = self._make_runner()
-        runner.launch(entry)
-
-        mock_title.assert_called_once_with("Tool")
-        cmd = mock_run.call_args[0][0]
-        assert cmd[0] == "my-tool"

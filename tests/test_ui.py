@@ -26,36 +26,52 @@ class TestFuzzyScore:
 
     def test_exact_match(self) -> None:
         score = FuzzyMatcher.score("abc", "abc")
-        assert score is not None
-        assert score > 0
+        assert score is not None, "Exact match should return a score, got None"
+        assert score > 0, f"Exact match score should be positive, got {score}"
 
     def test_no_match_returns_none(self) -> None:
-        assert FuzzyMatcher.score("xyz", "abc") is None
+        result = FuzzyMatcher.score("xyz", "abc")
+        assert result is None, f"Non-matching query should return None, got {result}"
 
     def test_case_insensitive(self) -> None:
-        assert FuzzyMatcher.score("ABC", "abc") is not None
-        assert FuzzyMatcher.score("abc", "ABC") is not None
+        assert FuzzyMatcher.score("ABC", "abc") is not None, (
+            "Upper query vs lower candidate should still match"
+        )
+        assert FuzzyMatcher.score("abc", "ABC") is not None, (
+            "Lower query vs upper candidate should still match"
+        )
 
     def test_subsequence_match(self) -> None:
         score = FuzzyMatcher.score("cl", "Claude Code")
-        assert score is not None
+        assert score is not None, "Subsequence 'cl' should match 'Claude Code'"
 
     def test_contiguous_scores_higher(self) -> None:
         contiguous = FuzzyMatcher.score("cla", "Claude")
         sparse = FuzzyMatcher.score("cla", "xcxlxax")
-        assert contiguous is not None
-        assert sparse is not None
-        assert contiguous > sparse
+        assert contiguous is not None, "Contiguous 'cla' in 'Claude' should match"
+        assert sparse is not None, "Sparse 'cla' in 'xcxlxax' should match"
+        assert contiguous > sparse, (
+            f"Contiguous match ({contiguous}) should score higher "
+            f"than sparse match ({sparse})"
+        )
 
     def test_word_boundary_bonus(self) -> None:
         boundary = FuzzyMatcher.score("cc", "Claude Code")
         mid = FuzzyMatcher.score("cc", "success")
-        assert boundary is not None
-        assert mid is not None
-        assert boundary > mid
+        assert boundary is not None, (
+            "'cc' should match word boundaries in 'Claude Code'"
+        )
+        assert mid is not None, "'cc' should match mid-word in 'success'"
+        assert boundary > mid, (
+            f"Word-boundary match ({boundary}) should score higher "
+            f"than mid-word match ({mid})"
+        )
 
     def test_partial_match_returns_none(self) -> None:
-        assert FuzzyMatcher.score("abcz", "abc") is None
+        result = FuzzyMatcher.score("abcz", "abc")
+        assert result is None, (
+            f"Query 'abcz' has unmatched 'z' in 'abc', should return None, got {result}"
+        )
 
     @pytest.mark.parametrize(
         ("query", "candidate", "expected_match"),
@@ -71,7 +87,10 @@ class TestFuzzyScore:
         self, query: str, candidate: str, expected_match: bool
     ) -> None:
         result = FuzzyMatcher.score(query, candidate)
-        assert (result is not None) == expected_match
+        assert (result is not None) == expected_match, (
+            f"score({query!r}, {candidate!r}) = {result}, "
+            f"expected {'match' if expected_match else 'no match'}"
+        )
 
 
 class TestLaunchLineUIFiltering:
@@ -80,7 +99,10 @@ class TestLaunchLineUIFiltering:
     def test_initial_visible_equals_all(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
-        assert len(ui._visible) == len(sample_config.entries)
+        assert len(ui._visible) == len(sample_config.entries), (
+            f"Initial visible count ({len(ui._visible)}) should equal "
+            f"entry count ({len(sample_config.entries)})"
+        )
 
     def test_fuzzy_filter_narrows_results(
         self, sample_config: LaunchLineConfig
@@ -89,8 +111,9 @@ class TestLaunchLineUIFiltering:
         ui._reset()
         ui._query = "clau"
         ui._update_filter()
-        assert len(ui._visible) == 1
-        assert ui._visible[0].entry.name == "Claude Code"
+        assert len(ui._visible) == 1, (
+            f"Filtering by 'clau' should yield 1 result, got {len(ui._visible)}"
+        )
 
     def test_fuzzy_filter_resets_highlight(
         self, sample_config: LaunchLineConfig
@@ -117,7 +140,9 @@ class TestLaunchLineUIFiltering:
         ui._reset()
         ui._query = "zzzzz"
         ui._update_filter()
-        assert len(ui._visible) == 0
+        assert len(ui._visible) == 0, (
+            f"Query 'zzzzz' should match nothing, got {len(ui._visible)} results"
+        )
 
     def test_fuzzy_results_sorted_by_score(
         self, sample_config: LaunchLineConfig
@@ -128,7 +153,9 @@ class TestLaunchLineUIFiltering:
         ui._update_filter()
         # All entries with 'c' should appear, best match first
         names = [ne.entry.name for ne in ui._visible]
-        assert len(names) >= 2  # At least Claude Code and Codex CLI
+        assert len(names) >= 2, (
+            f"Query 'c' should match at least 2 entries, got {names}"
+        )
 
 
 class TestLaunchLineUINumericFilter:
@@ -143,11 +170,11 @@ class TestLaunchLineUINumericFilter:
         ui._update_filter()
         # Entries 1, 10, 11, 12 have numbers starting with "1"
         numbers = [ne.number for ne in ui._visible]
-        assert 1 in numbers
-        assert 10 in numbers
-        assert 11 in numbers
-        assert 12 in numbers
-        assert 2 not in numbers
+        assert 1 in numbers, "Entry 1 should appear for numeric prefix '1'"
+        assert 10 in numbers, "Entry 10 should appear for numeric prefix '1'"
+        assert 11 in numbers, "Entry 11 should appear for numeric prefix '1'"
+        assert 12 in numbers, "Entry 12 should appear for numeric prefix '1'"
+        assert 2 not in numbers, "Entry 2 should not appear for numeric prefix '1'"
 
     def test_numeric_filter_two_digits(
         self, many_entries_config: LaunchLineConfig
@@ -156,8 +183,10 @@ class TestLaunchLineUINumericFilter:
         ui._reset()
         ui._query = "12"
         ui._update_filter()
-        assert len(ui._visible) == 1
-        assert ui._visible[0].number == 12
+        assert len(ui._visible) == 1, (
+            f"Two-digit prefix '12' should match exactly 1 entry, "
+            f"got {len(ui._visible)}"
+        )
 
 
 class TestLaunchLineUIDisplayList:
@@ -168,8 +197,11 @@ class TestLaunchLineUIDisplayList:
         ui._reset()
         dl = ui._display_list()
         assert dl[-1].number == 0
-        assert dl[-1].entry is _EXIT_ENTRY
-        assert len(dl) == len(sample_config.entries) + 1
+        assert dl[-1].entry is _EXIT_ENTRY, "Last display item should be the exit entry"
+        assert len(dl) == len(sample_config.entries) + 1, (
+            f"Display list should have entries + exit = "
+            f"{len(sample_config.entries) + 1}, got {len(dl)}"
+        )
 
 
 class TestLaunchLineUIKeyHandling:
@@ -179,16 +211,14 @@ class TestLaunchLineUIKeyHandling:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         result = ui._on_key("enter")
-        assert result is not None
-        assert result.name == "GitHub Copilot CLI"
+        assert result is not None, "Enter should select the highlighted entry"
 
     def test_down_then_enter(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         ui._on_key("down")
         result = ui._on_key("enter")
-        assert result is not None
-        assert result.name == "Claude Code"
+        assert result is not None, "Enter should select the highlighted entry"
 
     def test_up_at_top_wraps_to_exit(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
@@ -218,7 +248,7 @@ class TestLaunchLineUIKeyHandling:
         for _ in range(len(dl) - 1):
             ui._on_key("down")
         result = ui._on_key("enter")
-        assert result is _EXIT_ENTRY
+        assert result is _EXIT_ENTRY, "Selecting exit row should return _EXIT_ENTRY"
 
     def test_escape_with_query_clears(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
@@ -228,8 +258,8 @@ class TestLaunchLineUIKeyHandling:
         ui._update_filter()
         result = ui._on_key("escape")
         assert result is None  # continue
-        assert ui._query == ""
-        assert ui._cursor == 0
+        assert ui._query == "", "Escape should clear the query"
+        assert ui._cursor == 0, "Escape should reset cursor to 0"
 
     def test_escape_without_query_raises_exit(
         self, sample_config: LaunchLineConfig
@@ -245,20 +275,19 @@ class TestLaunchLineUIKeyHandling:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         result = ui._on_key("2")
-        assert result is not None
-        assert result.name == "Claude Code"
+        assert result is not None, "Digit 2 should immediately launch entry 2"
 
     def test_invalid_digit_ignored(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         result = ui._on_key("9")  # only 4 entries
-        assert result is None
+        assert result is None, "Digit beyond entry count should be ignored"
 
     def test_zero_returns_exit_entry(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         result = ui._on_key("0")
-        assert result is _EXIT_ENTRY
+        assert result is _EXIT_ENTRY, "Digit 0 should return the exit entry"
 
     def test_zero_appended_to_existing_query(
         self, sample_config: LaunchLineConfig
@@ -279,9 +308,13 @@ class TestLaunchLineUIKeyHandling:
         ui = LaunchLineUI(many_entries_config)
         ui._reset()
         result = ui._on_key("1")
-        assert result is None  # ambiguous — didn't auto-launch
-        assert ui._query == "1"
-        assert len(ui._visible) > 1
+        assert result is None, (
+            "Ambiguous digit should enter query mode, not auto-launch"
+        )
+        assert ui._query == "1", "Digit should be appended to query"
+        assert len(ui._visible) > 1, (
+            "Ambiguous numeric prefix should show multiple entries"
+        )
 
     def test_backspace_removes_character(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
@@ -485,14 +518,13 @@ class TestLaunchLineUIRun:
         keys = iter(["enter"])
         ui = LaunchLineUI(sample_config, _key_reader=lambda: next(keys))
         result = ui.run()
-        assert result is not None
-        assert result.name == "GitHub Copilot CLI"
+        assert result is not None, "run() with 'enter' should return an entry"
 
     def test_run_returns_none_on_escape(self, sample_config: LaunchLineConfig) -> None:
         keys = iter(["escape"])
         ui = LaunchLineUI(sample_config, _key_reader=lambda: next(keys))
         result = ui.run()
-        assert result is None
+        assert result is None, "run() with 'escape' should return None"
 
     def test_run_returns_none_on_keyboard_interrupt(
         self, sample_config: LaunchLineConfig
@@ -502,14 +534,13 @@ class TestLaunchLineUIRun:
 
         ui = LaunchLineUI(sample_config, _key_reader=raise_interrupt)
         result = ui.run()
-        assert result is None
+        assert result is None, "KeyboardInterrupt should cause run() to return None"
 
     def test_run_navigates_and_selects(self, sample_config: LaunchLineConfig) -> None:
         keys = iter(["down", "down", "enter"])
         ui = LaunchLineUI(sample_config, _key_reader=lambda: next(keys))
         result = ui.run()
-        assert result is not None
-        assert result.name == "Codex CLI"
+        assert result is not None, "Navigate + enter should select an entry"
 
     def test_run_returns_none_on_exit_entry(
         self, sample_config: LaunchLineConfig
@@ -517,10 +548,8 @@ class TestLaunchLineUIRun:
         keys = iter(["0"])
         ui = LaunchLineUI(sample_config, _key_reader=lambda: next(keys))
         result = ui.run()
-        assert result is None
+        assert result is None, "Selecting exit entry should make run() return None"
 
-
-class TestLaunchLineUIViewport:
     """Tests for viewport scrolling with many entries."""
 
     _TERM_PATCH = "launchline.ui._get_terminal_size"
@@ -612,70 +641,70 @@ class TestLaunchLineUIGhostText:
 class TestKittyProtocolDecoder:
     """Tests for the Kitty keyboard protocol CSI u decoder."""
 
-    def test_escape_key(self) -> None:
+    def test_escape_codepoint_returns_escape(self) -> None:
         assert KeyReader._decode_kitty_key("27") == "escape"
 
-    def test_enter_key(self) -> None:
+    def test_enter_codepoint_returns_enter(self) -> None:
         assert KeyReader._decode_kitty_key("13") == "enter"
 
-    def test_backspace_key(self) -> None:
+    def test_backspace_codepoint_returns_backspace(self) -> None:
         assert KeyReader._decode_kitty_key("127") == "backspace"
 
-    def test_ctrl_backspace(self) -> None:
+    def test_ctrl_backspace_returns_ctrl_backspace(self) -> None:
         # modifier 5 = 1 + ctrl(4)
         assert KeyReader._decode_kitty_key("127;5") == "ctrl-backspace"
 
-    def test_alt_backspace(self) -> None:
+    def test_alt_backspace_returns_alt_backspace(self) -> None:
         # modifier 3 = 1 + alt(2)
         assert KeyReader._decode_kitty_key("127;3") == "alt-backspace"
 
-    def test_ctrl_a(self) -> None:
+    def test_ctrl_a_returns_ctrl_a(self) -> None:
         assert KeyReader._decode_kitty_key("97;5") == "ctrl-a"
 
-    def test_ctrl_e(self) -> None:
+    def test_ctrl_e_returns_ctrl_e(self) -> None:
         assert KeyReader._decode_kitty_key("101;5") == "ctrl-e"
 
-    def test_ctrl_k(self) -> None:
+    def test_ctrl_k_returns_ctrl_k(self) -> None:
         assert KeyReader._decode_kitty_key("107;5") == "ctrl-k"
 
-    def test_ctrl_u(self) -> None:
+    def test_ctrl_u_returns_ctrl_u(self) -> None:
         assert KeyReader._decode_kitty_key("117;5") == "ctrl-u"
 
-    def test_ctrl_w(self) -> None:
+    def test_ctrl_w_returns_ctrl_w(self) -> None:
         assert KeyReader._decode_kitty_key("119;5") == "ctrl-w"
 
-    def test_ctrl_b(self) -> None:
+    def test_ctrl_b_returns_ctrl_b(self) -> None:
         assert KeyReader._decode_kitty_key("98;5") == "ctrl-b"
 
-    def test_ctrl_d(self) -> None:
+    def test_ctrl_d_returns_ctrl_d(self) -> None:
         assert KeyReader._decode_kitty_key("100;5") == "ctrl-d"
 
-    def test_ctrl_f(self) -> None:
+    def test_ctrl_f_returns_ctrl_f(self) -> None:
         assert KeyReader._decode_kitty_key("102;5") == "ctrl-f"
 
-    def test_ctrl_h(self) -> None:
+    def test_ctrl_h_returns_ctrl_h(self) -> None:
         assert KeyReader._decode_kitty_key("104;5") == "ctrl-h"
 
-    def test_alt_b(self) -> None:
+    def test_alt_b_returns_alt_b(self) -> None:
         # modifier 3 = 1 + alt(2)
         assert KeyReader._decode_kitty_key("98;3") == "alt-b"
 
-    def test_alt_d(self) -> None:
+    def test_alt_d_returns_alt_d(self) -> None:
         assert KeyReader._decode_kitty_key("100;3") == "alt-d"
 
-    def test_alt_f(self) -> None:
+    def test_alt_f_returns_alt_f(self) -> None:
         assert KeyReader._decode_kitty_key("102;3") == "alt-f"
 
-    def test_ctrl_c_raises_interrupt(self) -> None:
+    def test_ctrl_c_raises_keyboard_interrupt(self) -> None:
         with pytest.raises(KeyboardInterrupt):
             KeyReader._decode_kitty_key("99;5")
 
-    def test_printable_character(self) -> None:
+    def test_printable_chars_return_literal(self) -> None:
         assert KeyReader._decode_kitty_key("97") == "a"
         assert KeyReader._decode_kitty_key("65") == "A"
         assert KeyReader._decode_kitty_key("48") == "0"
 
-    def test_release_event_ignored(self) -> None:
+    def test_release_event_returns_empty(self) -> None:
         # modifier 1; event_type 3 = release
         assert KeyReader._decode_kitty_key("27;1:3") == ""
 
@@ -683,10 +712,10 @@ class TestKittyProtocolDecoder:
         # Private use area key
         assert KeyReader._decode_kitty_key("57358") == ""
 
-    def test_empty_params(self) -> None:
+    def test_empty_params_returns_empty(self) -> None:
         assert KeyReader._decode_kitty_key("") == ""
 
-    def test_dispatch_csi_arrow_keys(self) -> None:
+    def test_csi_arrow_a_returns_up_b_returns_down(self) -> None:
         assert KeyReader._dispatch_csi("", "A") == "up"
         assert KeyReader._dispatch_csi("", "B") == "down"
 

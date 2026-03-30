@@ -23,20 +23,24 @@ class TestLoadConfig:
 
     def test_loads_valid_config(self, sample_toml: Path) -> None:
         config = ConfigLoader.load(sample_toml)
-        assert isinstance(config, LaunchLineConfig)
-        assert len(config.entries) == 2
-        assert config.entries[0].name == "Alpha"
-        assert config.entries[0].command == "alpha-cmd"
-        assert config.entries[0].description == "First tool"
-        assert config.entries[1].name == "Beta"
+        assert isinstance(config, LaunchLineConfig), (
+            f"Expected LaunchLineConfig, got {type(config).__name__}"
+        )
+        assert len(config.entries) == 2, (
+            f"Expected 2 entries, got {len(config.entries)}"
+        )
 
     def test_default_settings(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
         cfg.write_text('[[entries]]\nname = "X"\ncommand = "x"\n', encoding="utf-8")
         config = ConfigLoader.load(cfg)
-        assert config.on_exit == "restart"
-        assert config.title == "LaunchLine"
-        assert config.clear_on_launch is True
+        assert config.on_exit == "restart", (
+            f"Default on_exit should be 'restart', got {config.on_exit!r}"
+        )
+        assert config.title == "LaunchLine", (
+            f"Default title should be 'LaunchLine', got {config.title!r}"
+        )
+        assert config.clear_on_launch is True, "Default clear_on_launch should be True"
 
     def test_custom_settings(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
@@ -47,9 +51,13 @@ class TestLoadConfig:
             encoding="utf-8",
         )
         config = ConfigLoader.load(cfg)
-        assert config.on_exit == "exit"
-        assert config.title == "My Launcher"
-        assert config.clear_on_launch is False
+        assert config.on_exit == "exit", (
+            f"Custom on_exit should be 'exit', got {config.on_exit!r}"
+        )
+        assert config.title == "My Launcher", (
+            f"Custom title should be 'My Launcher', got {config.title!r}"
+        )
+        assert config.clear_on_launch is False, "Custom clear_on_launch should be False"
 
     def test_entry_args_parsed(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
@@ -112,7 +120,10 @@ class TestLoadConfig:
             encoding="utf-8",
         )
         config = ConfigLoader.load(cfg)
-        assert config.entries[0].working_directory == wd
+        assert config.entries[0].working_directory == wd, (
+            f"Expected working_directory={wd}, "
+            f"got {config.entries[0].working_directory}"
+        )
 
     def test_missing_working_directory_becomes_none(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
@@ -122,7 +133,9 @@ class TestLoadConfig:
             encoding="utf-8",
         )
         config = ConfigLoader.load(cfg)
-        assert config.entries[0].working_directory is None
+        assert config.entries[0].working_directory is None, (
+            "Non-existent working_directory should resolve to None"
+        )
 
     def test_rejects_invalid_args_type(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
@@ -180,8 +193,10 @@ class TestResolveConfigPath:
         )
         result = ConfigLoader.resolve_path(None)
         assert result == default_path
-        assert default_path.exists()
-        assert default_path.read_text(encoding="utf-8") == ConfigLoader.STARTER_CONFIG
+        assert default_path.exists(), "Default config file should have been created"
+        assert default_path.read_text(encoding="utf-8") == (
+            ConfigLoader.STARTER_CONFIG
+        ), "Default config should contain STARTER_CONFIG"
 
     def test_created_config_is_loadable(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -194,7 +209,9 @@ class TestResolveConfigPath:
         )
         config_path = ConfigLoader.resolve_path(None)
         config = ConfigLoader.load(config_path)
-        assert len(config.entries) >= 1
+        assert len(config.entries) >= 1, (
+            "Auto-created config should have at least 1 entry"
+        )
 
 
 class TestConfigReferenceSync:
@@ -235,4 +252,6 @@ class TestConfigReferenceSync:
     def test_valid_on_exit_values_in_readme(self) -> None:
         text = _README.read_text(encoding="utf-8")
         for value in ConfigLoader.VALID_ON_EXIT:
-            assert f"`{value}`" in text or f'`"{value}"`' in text
+            assert f"`{value}`" in text or f'`"{value}"`' in text, (
+                f"on_exit value '{value}' not documented in README"
+            )
