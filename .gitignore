@@ -254,3 +254,6 @@ __marimo__/
 .streamlit/secrets.toml
 
 ### Project-Specific Rules
+
+# hatch-vcs generated version file
+src/launchline/_version.py

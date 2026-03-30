@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "launchline"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A lightweight terminal launcher for interactive CLI tools."
 requires-python = ">=3.12"
 license = "MIT"
@@ -83,7 +83,16 @@ addopts = "--cov=launchline --cov-report=term-missing --cov-fail-under=85"
 
 [tool.coverage.run]
 source = ["launchline"]
-omit = ["src/launchline/__main__.py"]
+omit = ["src/launchline/__main__.py", "src/launchline/_version.py"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+local_scheme = "no-local-version"
+
+[tool.hatch.build.targets.wheel.hooks.vcs]
+version-file = "src/launchline/_version.py"
 
 [tool.coverage.report]
 fail_under = 85
