@@ -32,6 +32,7 @@ Changelog = "https://github.com/mikejhill/LaunchLine/blob/main/CHANGELOG.md"
 dev = [
     "mypy>=1.10",
     "pytest>=8.0",
+    "pytest-cov>=7.1.0",
     "ruff>=0.7",
 ]
 screenshots = [
@@ -78,3 +79,17 @@ warn_unused_ignores = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--cov=launchline --cov-report=term-missing --cov-fail-under=85"
+
+[tool.coverage.run]
+source = ["launchline"]
+omit = ["src/launchline/__main__.py"]
+
+[tool.coverage.report]
+fail_under = 85
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.",
+    "if TYPE_CHECKING:",
+]
