@@ -656,18 +656,18 @@ class TestLaunchLineUIGhostText:
         )
 
 
-class TestInstantNumericLaunch:
-    """Tests for the instant_numeric_launch feature flag."""
+class TestNumericTrigger:
+    """Tests for the numeric_trigger feature flag."""
 
     def test_enabled_by_default(self, sample_config: LaunchLineConfig) -> None:
-        """Instant numeric launch is enabled by default."""
+        """Numeric trigger is enabled by default."""
         ui = LaunchLineUI(sample_config)
-        assert ui._instant_numeric_launch is True
+        assert ui._numeric_trigger is True
 
     def test_digit_launches_immediately_when_enabled(
         self, sample_config: LaunchLineConfig
     ) -> None:
-        """With instant_numeric_launch=True and ≤9 entries, digit launches."""
+        """With numeric_trigger=True and ≤9 entries, digit launches."""
         ui = LaunchLineUI(sample_config)
         ui._reset()
         result = ui._on_key("2")
@@ -675,20 +675,18 @@ class TestInstantNumericLaunch:
         assert result.name == "Claude Code"
 
     def test_digit_enters_query_when_disabled(self) -> None:
-        """With instant_numeric_launch=False, digit goes to search query."""
+        """With numeric_trigger=False, digit goes to search query."""
         config = LaunchLineConfig(
             entries=(
                 EntryConfig(name="Alpha", command="a"),
                 EntryConfig(name="Beta", command="b"),
             ),
-            instant_numeric_launch=False,
+            numeric_trigger=False,
         )
         ui = LaunchLineUI(config)
         ui._reset()
         result = ui._on_key("1")
-        assert result is None, (
-            "Digit should not launch when instant_numeric_launch=False"
-        )
+        assert result is None, "Digit should not launch when numeric_trigger=False"
         assert ui._query == "1", "Digit should be appended to query"
 
     def test_disabled_numeric_query_also_fuzzy_matches_names(self) -> None:
@@ -699,7 +697,7 @@ class TestInstantNumericLaunch:
                 EntryConfig(name="Item B", command="b"),
                 EntryConfig(name="Item 2x", command="c"),
             ),
-            instant_numeric_launch=False,
+            numeric_trigger=False,
         )
         ui = LaunchLineUI(config)
         ui._reset()
@@ -720,7 +718,7 @@ class TestInstantNumericLaunch:
                 EntryConfig(name="Other", command="b"),
                 EntryConfig(name="Another", command="c"),
             ),
-            instant_numeric_launch=False,
+            numeric_trigger=False,
         )
         ui = LaunchLineUI(config)
         ui._reset()
@@ -742,7 +740,7 @@ class TestInstantNumericLaunch:
                 EntryConfig(name="Alpha", command="a"),
                 EntryConfig(name="Beta", command="b"),
             ),
-            instant_numeric_launch=False,
+            numeric_trigger=False,
         )
         ui = LaunchLineUI(config)
         ui._reset()
@@ -750,20 +748,20 @@ class TestInstantNumericLaunch:
         result = ui._on_key("2")
         assert result is None, (
             "Should not auto-launch even with single numeric match "
-            "when instant_numeric_launch=False"
+            "when numeric_trigger=False"
         )
 
     def test_zero_still_exits_when_disabled(self) -> None:
         """Pressing 0 with no query still returns exit entry."""
         config = LaunchLineConfig(
             entries=(EntryConfig(name="Tool", command="t"),),
-            instant_numeric_launch=False,
+            numeric_trigger=False,
         )
         ui = LaunchLineUI(config)
         ui._reset()
         result = ui._on_key("0")
         assert result is _EXIT_ENTRY, (
-            "0 should still select exit even with instant_numeric_launch=False"
+            "0 should still select exit even with numeric_trigger=False"
         )
 
 

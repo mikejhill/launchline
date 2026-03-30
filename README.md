@@ -88,14 +88,14 @@ Config file format is [TOML](https://toml.io). The file has an optional
 
 ### `[settings]`
 
-| Key                      | Type   | Default        | Description                                                       |
-| ------------------------ | ------ | -------------- | ----------------------------------------------------------------- |
-| `on_exit`                | string | `"restart"`    | Behavior after a launched tool exits: `restart` or `exit`         |
-| `title`                  | string | `"LaunchLine"` | Window/tab title shown while the launcher is active               |
-| `clear_on_launch`        | bool   | `true`         | Clear terminal before launching an entry                          |
-| `show_exit`              | bool   | `true`         | Show the **Exit** entry (shortcut `0`) in the menu                |
-| `ghost_text`             | bool   | `true`         | Show the highlighted entry name as an autocomplete hint on prompt |
-| `instant_numeric_launch` | bool   | `true`         | Pressing a digit immediately launches the matching entry          |
+| Key               | Type   | Default        | Description                                                       |
+| ----------------- | ------ | -------------- | ----------------------------------------------------------------- |
+| `title`           | string | `"LaunchLine"` | Window/tab title shown while the launcher is active               |
+| `on_exit`         | string | `"restart"`    | Behavior after a launched tool exits: `restart` or `exit`         |
+| `show_exit`       | bool   | `true`         | Show the **Exit** entry (shortcut `0`) in the menu                |
+| `clear_on_launch` | bool   | `true`         | Clear terminal before launching an entry                          |
+| `ghost_text`      | bool   | `true`         | Show the highlighted entry name as an autocomplete hint on prompt |
+| `numeric_trigger` | bool   | `true`         | Pressing a digit immediately launches the matching entry          |
 
 ### `[[entries]]`
 
@@ -125,12 +125,12 @@ Each `[[entries]]` table defines one launchable tool:
 
 ```toml
 [settings]
-on_exit = "restart"
 title = "My Tools"
-clear_on_launch = true
+on_exit = "restart"
 show_exit = true
+clear_on_launch = true
 ghost_text = true
-instant_numeric_launch = true
+numeric_trigger = true
 
 [[entries]]
 name = "GitHub Copilot CLI"

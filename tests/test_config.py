@@ -42,9 +42,7 @@ class TestLoadConfig:
         )
         assert config.clear_on_launch is True, "Default clear_on_launch should be True"
         assert config.ghost_text is True, "Default ghost_text should be True"
-        assert config.instant_numeric_launch is True, (
-            "Default instant_numeric_launch should be True"
-        )
+        assert config.numeric_trigger is True, "Default numeric_trigger should be True"
 
     def test_custom_settings(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
@@ -52,7 +50,7 @@ class TestLoadConfig:
             '[settings]\non_exit = "exit"\ntitle = "My Launcher"\n'
             "clear_on_launch = false\n"
             "ghost_text = false\n"
-            "instant_numeric_launch = false\n\n"
+            "numeric_trigger = false\n\n"
             '[[entries]]\nname = "X"\ncommand = "x"\n',
             encoding="utf-8",
         )
@@ -65,9 +63,7 @@ class TestLoadConfig:
         )
         assert config.clear_on_launch is False, "Custom clear_on_launch should be False"
         assert config.ghost_text is False, "Custom ghost_text should be False"
-        assert config.instant_numeric_launch is False, (
-            "Custom instant_numeric_launch should be False"
-        )
+        assert config.numeric_trigger is False, "Custom numeric_trigger should be False"
 
     def test_entry_args_parsed(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"

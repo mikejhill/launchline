@@ -53,26 +53,27 @@ class LaunchLineConfig:
 
     Attributes:
         entries: Ordered tuple of launchable entries.
+        title: Text displayed in the header and terminal title bar.
         on_exit: Behaviour after a launched process exits —
             ``"restart"`` (re-show the menu) or ``"exit"`` (quit).
-        title: Text displayed in the header and terminal title bar.
+        show_exit: Whether to display the ``Exit`` option (shortcut
+            ``0``) in the menu.
         clear_on_launch: Whether to clear the screen before launching.
-        show_exit: Whether to display the ``Exit`` option in the menu.
         ghost_text: Whether to show an autocomplete hint on the prompt
             line with the highlighted entry's name.
-        instant_numeric_launch: Whether pressing a digit immediately
-            launches the matching entry (when ≤9 entries and no active
-            query).  When ``False``, digits always enter the search
-            query and fuzzy-match against both numbers and names.
+        numeric_trigger: Whether pressing a digit immediately launches
+            the matching entry (when ≤9 entries and no active query).
+            When ``False``, digits always enter the search query and
+            fuzzy-match against both numbers and names.
     """
 
     entries: tuple[EntryConfig, ...]
-    on_exit: str = "restart"
     title: str = "LaunchLine"
-    clear_on_launch: bool = True
+    on_exit: str = "restart"
     show_exit: bool = True
+    clear_on_launch: bool = True
     ghost_text: bool = True
-    instant_numeric_launch: bool = True
+    numeric_trigger: bool = True
 
 
 class ConfigLoader:
@@ -95,12 +96,12 @@ class ConfigLoader:
 # See https://github.com/mikejhill/launchline#configuration-reference
 
 [settings]
-# on_exit = "restart"   # "restart" (default) or "exit"
 # title = "LaunchLine"
-# clear_on_launch = true
+# on_exit = "restart"   # "restart" (default) or "exit"
 # show_exit = true
+# clear_on_launch = true
 # ghost_text = true
-# instant_numeric_launch = true
+# numeric_trigger = true
 
 [[entries]]
 name = "PowerShell"
@@ -171,6 +172,8 @@ description = "PowerShell 7"
 
         settings = raw.get("settings", {})
 
+        title: str = settings.get("title", "LaunchLine")
+
         on_exit = settings.get("on_exit", "restart")
         if on_exit not in ConfigLoader.VALID_ON_EXIT:
             raise ConfigurationError(
@@ -178,11 +181,10 @@ description = "PowerShell 7"
                 f"Must be one of: {', '.join(ConfigLoader.VALID_ON_EXIT)}"
             )
 
-        title: str = settings.get("title", "LaunchLine")
-        clear_on_launch: bool = settings.get("clear_on_launch", True)
         show_exit: bool = settings.get("show_exit", True)
+        clear_on_launch: bool = settings.get("clear_on_launch", True)
         ghost_text: bool = settings.get("ghost_text", True)
-        instant_numeric_launch: bool = settings.get("instant_numeric_launch", True)
+        numeric_trigger: bool = settings.get("numeric_trigger", True)
 
         raw_entries: list[dict[str, object]] = raw.get("entries", [])
         if not raw_entries:
@@ -237,12 +239,12 @@ description = "PowerShell 7"
 
         return LaunchLineConfig(
             entries=tuple(entries),
-            on_exit=on_exit,
             title=title,
-            clear_on_launch=clear_on_launch,
+            on_exit=on_exit,
             show_exit=show_exit,
+            clear_on_launch=clear_on_launch,
             ghost_text=ghost_text,
-            instant_numeric_launch=instant_numeric_launch,
+            numeric_trigger=numeric_trigger,
         )
 
     @staticmethod

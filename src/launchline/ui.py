@@ -109,7 +109,7 @@ class LaunchLineUI:
         self._exit_entry = _NumberedEntry(number=0, entry=_EXIT_ENTRY)
         self._show_exit = config.show_exit
         self._ghost_text_enabled = config.ghost_text
-        self._instant_numeric_launch = config.instant_numeric_launch
+        self._numeric_trigger = config.numeric_trigger
         self._key_reader = _key_reader or (lambda: KeyReader.read_key(timeout=0.05))
 
         # Mutable state — reset on each run()
@@ -351,7 +351,7 @@ class LaunchLineUI:
         """Handle a printable character input.
 
         Supports immediate numeric selection (single-digit when ≤9
-        entries and ``instant_numeric_launch`` is enabled), '0' for
+        entries and ``numeric_trigger`` is enabled), '0' for
         exit, and appending to the fuzzy query.  Triggers auto-launch
         when a numeric query narrows to one match.
 
@@ -368,7 +368,7 @@ class LaunchLineUI:
 
         # Immediate single-digit launch when ≤9 total entries
         if (
-            self._instant_numeric_launch
+            self._numeric_trigger
             and not self._query
             and ch.isdigit()
             and len(self._all_entries) <= 9
@@ -384,7 +384,7 @@ class LaunchLineUI:
 
         # Auto-launch if exactly one numeric match remains
         if (
-            self._instant_numeric_launch
+            self._numeric_trigger
             and self._query.isdigit()
             and len(self._visible) == 1
         ):
@@ -399,9 +399,9 @@ class LaunchLineUI:
 
         Three modes:
         - Empty query: show all entries.
-        - Numeric query with ``instant_numeric_launch`` enabled:
+        - Numeric query with ``numeric_trigger`` enabled:
           prefix-match against entry display numbers only.
-        - Numeric query with ``instant_numeric_launch`` disabled:
+        - Numeric query with ``numeric_trigger`` disabled:
           prefix-match against entry numbers *and* fuzzy-match entry
           names, with number matches ranked first.
         - Text query: fuzzy-match against entry names, sorted by score.
@@ -411,7 +411,7 @@ class LaunchLineUI:
         if not self._query:
             self._visible = list(self._all_entries)
             self._exit_visible = self._show_exit
-        elif self._query.isdigit() and self._instant_numeric_launch:
+        elif self._query.isdigit() and self._numeric_trigger:
             # Numeric prefix filter against entry numbers
             self._visible = [
                 ne for ne in self._all_entries if str(ne.number).startswith(self._query)
