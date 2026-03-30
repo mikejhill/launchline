@@ -10,6 +10,8 @@ A lightweight terminal launcher for interactive CLI tools. Define your frequentl
 used commands in a TOML config file, then pick them from a fuzzy-searchable menu
 instead of remembering flags and paths.
 
+![LaunchLine demo](docs/images/demo.gif)
+
 ## Why
 
 Switching between CLI tools — AI assistants, shells, dev utilities — means
@@ -27,15 +29,33 @@ instead.
 - **Auto-generated starter config** — creates `~/.config/launchline/config.toml`
   on first run if no config exists
 
+|           Fuzzy search            |         Arrow-key navigation          |
+| :-------------------------------: | :-----------------------------------: |
+| ![Search](docs/images/search.png) | ![Navigate](docs/images/navigate.png) |
+
 ## Installation
 
-### With uv (recommended)
+### From PyPI (recommended)
 
 ```sh
 uv tool install launchline
 ```
 
+Or with pip:
+
+```sh
+pip install launchline
+```
+
 ### From source
+
+```sh
+git clone https://github.com/mikejhill/LaunchLine.git
+cd LaunchLine
+uv tool install .
+```
+
+### Run without installing
 
 ```sh
 git clone https://github.com/mikejhill/LaunchLine.git
@@ -147,10 +167,10 @@ Add LaunchLine as a Windows Terminal profile to use it as your default launcher:
 ```jsonc
 // In your Windows Terminal settings.json → profiles.list
 {
-    "name": "LaunchLine",
-    "commandline": "launchline",
-    "startingDirectory": "%USERPROFILE%",
-    "icon": "ms-appx:///ProfileIcons/{9acb9455-ca41-5af7-950f-6bca1bc9722f}.png"
+  "name": "LaunchLine",
+  "commandline": "launchline",
+  "startingDirectory": "%USERPROFILE%",
+  "icon": "ms-appx:///ProfileIcons/{9acb9455-ca41-5af7-950f-6bca1bc9722f}.png",
 }
 ```
 
