@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reverted array syntax for `command` config key; `command` is string-only,
   use `args` for arguments
 
+### Changed
+
+- Improved test naming to follow `[unit]_[scenario]_[expectedResult]` pattern
+- Added diagnostic failure messages to all test assertions
+- Release workflow now supports `force-patch` input for non-bumping commits
+
 ## [0.2.0] - 2026-03-30
 
 ### Added

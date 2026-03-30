@@ -2,6 +2,11 @@ name: Release
 
 on:
   workflow_dispatch:
+    inputs:
+      force-patch:
+        description: "Force a patch version bump (use when only docs/test/chore commits exist)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -20,6 +25,7 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           allow-initial-development-versions: true
+          force-bump-patch-version: ${{ inputs.force-patch }}
           dry: true
 
       - name: Require new version
