@@ -75,6 +75,11 @@ def main() -> None:
     from launchline.cli import CommandLineInterface
 
     args = CommandLineInterface.parse_args()
+
+    if args.icon_path:
+        print(CommandLineInterface.icon_path())
+        return
+
     logging.basicConfig(
         level=args.log_level,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",

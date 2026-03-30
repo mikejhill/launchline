@@ -147,35 +147,24 @@ class TestLoadConfig:
             "Non-existent working_directory should resolve to None"
         )
 
-    def test_icon_path_expanded(self, tmp_path: Path) -> None:
-        icon = tmp_path / "my-icon.png"
-        icon.write_bytes(b"PNG")
+    def test_title_prefix_parsed(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
         cfg.write_text(
-            f'[[entries]]\nname = "X"\ncommand = "x"\nicon = "{icon.as_posix()}"\n',
+            '[[entries]]\nname = "X"\ncommand = "x"\ntitle_prefix = "\U0001f916"\n',
             encoding="utf-8",
         )
         config = ConfigLoader.load(cfg)
-        assert config.entries[0].icon == icon, (
-            f"Expected icon={icon}, got {config.entries[0].icon}"
+        assert config.entries[0].title_prefix == "\U0001f916", (
+            f"Expected robot emoji prefix, got {config.entries[0].title_prefix!r}"
         )
 
-    def test_missing_icon_becomes_none(self, tmp_path: Path) -> None:
-        cfg = tmp_path / "config.toml"
-        cfg.write_text(
-            '[[entries]]\nname = "X"\ncommand = "x"\nicon = "/nonexistent/icon.png"\n',
-            encoding="utf-8",
-        )
-        config = ConfigLoader.load(cfg)
-        assert config.entries[0].icon is None, (
-            "Non-existent icon should resolve to None"
-        )
-
-    def test_icon_defaults_to_none(self, tmp_path: Path) -> None:
+    def test_title_prefix_defaults_to_empty(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
         cfg.write_text('[[entries]]\nname = "X"\ncommand = "x"\n', encoding="utf-8")
         config = ConfigLoader.load(cfg)
-        assert config.entries[0].icon is None, "Omitted icon should default to None"
+        assert config.entries[0].title_prefix == "", (
+            "Omitted title_prefix should default to empty string"
+        )
 
     def test_rejects_invalid_args_type(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+from importlib.resources import files
 from pathlib import Path
 
 
@@ -16,6 +17,16 @@ class CommandLineInterface:
 
     All methods are static; the class serves as a logical namespace.
     """
+
+    @staticmethod
+    def icon_path() -> Path:
+        """Return the path to the bundled LaunchLine icon.
+
+        Returns:
+            Absolute path to the ``.ico`` file shipped with the package.
+        """
+        resource = files("launchline").joinpath("assets", "launchline.ico")
+        return Path(str(resource))
 
     @staticmethod
     def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -46,6 +57,12 @@ class CommandLineInterface:
             default="WARNING",
             choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
             help="Logging verbosity (default: %(default)s).",
+        )
+        parser.add_argument(
+            "--icon-path",
+            action="store_true",
+            default=False,
+            help="Print the path to the bundled icon and exit.",
         )
 
         args = parser.parse_args(argv)

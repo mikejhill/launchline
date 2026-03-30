@@ -18,6 +18,7 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS = ROOT / "assets"
+PKG_ASSETS = ROOT / "src" / "launchline" / "assets"
 
 # ---------------------------------------------------------------------------
 # SVG geometry (from assets/launchline.svg at 64x64 viewBox)
@@ -93,23 +94,24 @@ def _render(size: int) -> Image.Image:
 
 
 def main() -> None:
-    """Generate ICO and PNG files in the assets directory."""
+    """Generate ICO and PNG files in the assets directories."""
     ico_sizes = [16, 32, 48, 64, 128, 256]
     images = [_render(sz) for sz in ico_sizes]
 
-    # Multi-size ICO — use largest as base, append the rest
-    ico_path = ASSETS / "launchline.ico"
-    images[-1].save(
-        ico_path,
-        format="ICO",
-        append_images=images[:-1],
-    )
+    # Multi-size ICO — project root assets and installed package assets
+    for dest in [ASSETS, PKG_ASSETS]:
+        dest.mkdir(parents=True, exist_ok=True)
+        ico_path = dest / "launchline.ico"
+        images[-1].save(
+            ico_path,
+            format="ICO",
+            append_images=images[:-1],
+        )
+        print(f"  ICO ({len(ico_sizes)} sizes) -> {ico_path}")
 
-    # 256px PNG
+    # 256px PNG (project root only — for GitHub social preview)
     png_path = ASSETS / "launchline.png"
     images[-1].save(png_path, format="PNG")
-
-    print(f"  ICO ({len(ico_sizes)} sizes) -> {ico_path}")
     print(f"  PNG (256x256)       -> {png_path}")
 
 

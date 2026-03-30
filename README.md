@@ -101,15 +101,15 @@ Config file format is [TOML](https://toml.io). The file has an optional
 
 Each `[[entries]]` table defines one launchable tool:
 
-| Key                 | Type            | Required | Default | Description                                                |
-| ------------------- | --------------- | -------- | ------- | ---------------------------------------------------------- |
-| `name`              | string          | yes      | —       | Display name shown in the menu                             |
-| `command`           | string          | yes      | —       | Executable to run                                          |
-| `args`              | list of strings | no       | `[]`    | Arguments passed to the command                            |
-| `description`       | string          | no       | `""`    | Short description shown next to the name                   |
-| `working_directory` | string          | no       | —       | Working directory for the subprocess                       |
-| `env`               | table           | no       | `{}`    | Extra environment variables (`KEY = "value"`)              |
-| `icon`              | string          | no       | —       | Path to an icon file used for terminal profile integration |
+| Key                 | Type            | Required | Default | Description                                                    |
+| ------------------- | --------------- | -------- | ------- | -------------------------------------------------------------- |
+| `name`              | string          | yes      | —       | Display name shown in the menu                                 |
+| `command`           | string          | yes      | —       | Executable to run                                              |
+| `args`              | list of strings | no       | `[]`    | Arguments passed to the command                                |
+| `description`       | string          | no       | `""`    | Short description shown next to the name                       |
+| `working_directory` | string          | no       | —       | Working directory for the subprocess                           |
+| `env`               | table           | no       | `{}`    | Extra environment variables (`KEY = "value"`)                  |
+| `title_prefix`      | string          | no       | `""`    | Emoji/text prepended to the terminal tab title on launch       |
 
 ### Validation Rules
 
@@ -120,8 +120,6 @@ Each `[[entries]]` table defines one launchable tool:
 - `env` must be a TOML table (not a string or list).
 - If `working_directory` does not exist at load time, it is silently reset to
   `None` (a warning is logged).
-- If `icon` does not exist at load time, it is silently reset to `None` (a
-  warning is logged).
 
 ### Example Config
 
@@ -137,7 +135,7 @@ instant_numeric_launch = true
 [[entries]]
 name = "GitHub Copilot CLI"
 command = "copilot"
-icon = "~/.config/launchline/icons/copilot.png"
+title_prefix = "🤖"
 
 [[entries]]
 name = "Claude Code"
@@ -168,8 +166,7 @@ env = { TERM = "xterm-256color" }
 ## Windows Terminal Integration
 
 Add LaunchLine as a Windows Terminal profile to use it as your default launcher.
-The project includes an icon in `assets/launchline.ico` — copy it to a permanent
-location or reference it directly from your clone:
+The package bundles an icon that you can reference via `launchline --icon-path`:
 
 ```jsonc
 // In your Windows Terminal settings.json → profiles.list
@@ -177,15 +174,16 @@ location or reference it directly from your clone:
   "name": "LaunchLine",
   "commandline": "launchline",
   "startingDirectory": "%USERPROFILE%",
-  "icon": "C:/path/to/launchline/assets/launchline.ico"
+  // Run: launchline --icon-path
+  "icon": "C:/Users/you/.local/lib/.../launchline/assets/launchline.ico"
 }
 ```
 
 Set it as the default profile to see the launcher every time you open a terminal.
 
-> **Note:** Current terminals do not support changing the tab icon dynamically
-> when a sub-CLI is launched.  The per-entry `icon` field is reserved for future
-> terminal integrations that add this capability.
+When an entry has a `title_prefix` configured (e.g. an emoji), it is prepended
+to the terminal tab title via an OSC escape sequence.  This gives a visual
+indicator of which sub-CLI is active alongside the LaunchLine profile icon.
 
 ## Development
 

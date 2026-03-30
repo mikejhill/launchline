@@ -32,10 +32,10 @@ class EntryConfig:
             ``None`` to inherit the launcher's CWD.
         env: Extra environment variables merged into the subprocess
             environment.
-        icon: Optional path to an icon file for this entry.  Used by
-            terminal integrations that support per-tab icons (e.g. a
-            Windows Terminal profile icon override).  When ``None``,
-            the launcher's own icon is kept.
+        title_prefix: Optional string (typically an emoji) prepended
+            to the entry name when setting the terminal tab title.
+            Appears between the profile icon and the title text in
+            terminals that support OSC title sequences.
     """
 
     name: str
@@ -44,7 +44,7 @@ class EntryConfig:
     description: str = ""
     working_directory: Path | None = None
     env: dict[str, str] = field(default_factory=dict)
-    icon: Path | None = None
+    title_prefix: str = ""
 
 
 @dataclass(frozen=True)
@@ -221,17 +221,7 @@ description = "PowerShell 7"
                     f"Entry {i}: 'env' must be a table of strings."
                 )
 
-            icon_raw = entry_raw.get("icon")
-            icon: Path | None = None
-            if icon_raw:
-                icon = Path(str(icon_raw)).expanduser()
-                if not icon.exists():
-                    logger.warning(
-                        "Entry '%s': icon does not exist: %s",
-                        name,
-                        icon,
-                    )
-                    icon = None
+            title_prefix: str = str(entry_raw.get("title_prefix", ""))
 
             entries.append(
                 EntryConfig(
@@ -241,7 +231,7 @@ description = "PowerShell 7"
                     description=str(entry_raw.get("description", "")),
                     working_directory=wd,
                     env={str(k): str(v) for k, v in raw_env.items()},
-                    icon=icon,
+                    title_prefix=title_prefix,
                 )
             )
 

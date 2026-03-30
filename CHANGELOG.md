@@ -19,7 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Kitty keyboard protocol support
 - `ghost_text` feature flag for autocomplete hints on the prompt line
 - `instant_numeric_launch` feature flag for immediate digit-key launching
-- Per-entry `icon` field for terminal profile integration
+- Per-entry `title_prefix` for emoji indicators in terminal tab titles
+- Bundled icon accessible via `launchline --icon-path` for Windows Terminal profiles
 - Cross-platform support (Windows, macOS, Linux)
 - LaunchLine icon (SVG, ICO, PNG) in `assets/`
 - PyPI publishing via GitHub Actions with OIDC trusted publishers

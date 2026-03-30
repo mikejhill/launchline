@@ -84,3 +84,27 @@ class TestParseArgs:
         assert args.log_level == logging.DEBUG, (
             f"Expected DEBUG ({logging.DEBUG}), got {args.log_level}"
         )
+
+    def test_icon_path_flag_parsed(self) -> None:
+        """--icon-path flag is stored as boolean True."""
+        args = CommandLineInterface.parse_args(["--icon-path"])
+        assert args.icon_path is True, (
+            f"Expected icon_path=True, got {args.icon_path!r}"
+        )
+
+    def test_icon_path_defaults_to_false(self) -> None:
+        """icon_path defaults to False when not specified."""
+        args = CommandLineInterface.parse_args([])
+        assert args.icon_path is False, (
+            f"Expected icon_path=False by default, got {args.icon_path!r}"
+        )
+
+
+class TestIconPath:
+    """Tests for CommandLineInterface.icon_path."""
+
+    def test_icon_path_returns_existing_file(self) -> None:
+        """Bundled icon file must exist at the returned path."""
+        path = CommandLineInterface.icon_path()
+        assert path.exists(), f"Bundled icon not found at {path}"
+        assert path.suffix == ".ico", f"Expected .ico file, got {path.suffix}"
