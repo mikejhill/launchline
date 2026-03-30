@@ -128,7 +128,10 @@ class TestConfigPathFlag:
     """Tests for --config-path flag behaviour via main()."""
 
     def test_prints_explicit_config_path(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
         """--config-path with --config prints the explicit path."""
         cfg = tmp_path / "custom.toml"
@@ -145,7 +148,10 @@ class TestConfigPathFlag:
         )
 
     def test_prints_default_config_path(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
     ) -> None:
         """--config-path without --config resolves via standard lookup."""
         cfg = tmp_path / "config.toml"
