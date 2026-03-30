@@ -7,7 +7,7 @@ A lightweight terminal launcher for interactive CLI tools. Define your frequentl
 used commands in a TOML config file, then pick them from a fuzzy-searchable menu
 instead of remembering flags and paths.
 
-![LaunchLine demo](https://raw.githubusercontent.com/mikejhill/launchline/main/docs/images/demo.gif)
+![LaunchLine demo](docs/images/demo.gif)
 
 ## Why
 
@@ -28,7 +28,7 @@ instead.
 
 |           Fuzzy search            |         Arrow-key navigation          |
 | :-------------------------------: | :-----------------------------------: |
-| ![Search](https://raw.githubusercontent.com/mikejhill/launchline/main/docs/images/search.png) | ![Navigate](https://raw.githubusercontent.com/mikejhill/launchline/main/docs/images/navigate.png) |
+| ![Search](docs/images/search.png) | ![Navigate](docs/images/navigate.png) |
 
 ## Installation
 
