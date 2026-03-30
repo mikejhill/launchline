@@ -383,11 +383,7 @@ class LaunchLineUI:
         self._update_filter()
 
         # Auto-launch if exactly one numeric match remains
-        if (
-            self._numeric_trigger
-            and self._query.isdigit()
-            and len(self._visible) == 1
-        ):
+        if self._numeric_trigger and self._query.isdigit() and len(self._visible) == 1:
             return self._visible[0].entry
 
         return None

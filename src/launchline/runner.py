@@ -48,12 +48,7 @@ class EntryRunner:
         Raises:
             LaunchError: If the command cannot be found or executed.
         """
-        title = (
-            f"{entry.title_prefix} {entry.name}".strip()
-            if entry.title_prefix
-            else entry.name
-        )
-        self._set_terminal_title(title)
+        self._set_terminal_title(entry.name)
 
         if self._config.clear_on_launch:
             self._clear_screen()

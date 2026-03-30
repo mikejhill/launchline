@@ -109,7 +109,6 @@ Each `[[entries]]` table defines one launchable tool:
 | `description`       | string          | no       | `""`    | Short description shown next to the name                       |
 | `working_directory` | string          | no       | —       | Working directory for the subprocess                           |
 | `env`               | table           | no       | `{}`    | Extra environment variables (`KEY = "value"`)                  |
-| `title_prefix`      | string          | no       | `""`    | Emoji/text prepended to the terminal tab title on launch       |
 
 ### Validation Rules
 
@@ -135,7 +134,6 @@ numeric_trigger = true
 [[entries]]
 name = "GitHub Copilot CLI"
 command = "copilot"
-title_prefix = "🤖"
 
 [[entries]]
 name = "Claude Code"
@@ -180,10 +178,6 @@ The package bundles an icon that you can reference via `launchline --icon-path`:
 ```
 
 Set it as the default profile to see the launcher every time you open a terminal.
-
-When an entry has a `title_prefix` configured (e.g. an emoji), it is prepended
-to the terminal tab title via an OSC escape sequence.  This gives a visual
-indicator of which sub-CLI is active alongside the LaunchLine profile icon.
 
 ## Development
 

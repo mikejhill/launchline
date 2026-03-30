@@ -32,10 +32,6 @@ class EntryConfig:
             ``None`` to inherit the launcher's CWD.
         env: Extra environment variables merged into the subprocess
             environment.
-        title_prefix: Optional string (typically an emoji) prepended
-            to the entry name when setting the terminal tab title.
-            Appears between the profile icon and the title text in
-            terminals that support OSC title sequences.
     """
 
     name: str
@@ -44,7 +40,6 @@ class EntryConfig:
     description: str = ""
     working_directory: Path | None = None
     env: dict[str, str] = field(default_factory=dict)
-    title_prefix: str = ""
 
 
 @dataclass(frozen=True)
@@ -223,8 +218,6 @@ description = "PowerShell 7"
                     f"Entry {i}: 'env' must be a table of strings."
                 )
 
-            title_prefix: str = str(entry_raw.get("title_prefix", ""))
-
             entries.append(
                 EntryConfig(
                     name=str(name),
@@ -233,7 +226,6 @@ description = "PowerShell 7"
                     description=str(entry_raw.get("description", "")),
                     working_directory=wd,
                     env={str(k): str(v) for k, v in raw_env.items()},
-                    title_prefix=title_prefix,
                 )
             )
 
