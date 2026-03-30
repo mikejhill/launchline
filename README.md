@@ -1,10 +1,5 @@
 # LaunchLine
 
-<img src="assets/launchline.svg" alt="LaunchLine icon" width="64">
-
-> [!NOTE]
-> This project was created with the assistance of AI.
-
 [![CI](https://github.com/mikejhill/launchline/actions/workflows/ci.yml/badge.svg)](https://github.com/mikejhill/launchline/actions/workflows/ci.yml)
 [![Publish](https://github.com/mikejhill/launchline/actions/workflows/publish.yml/badge.svg)](https://github.com/mikejhill/launchline/actions/workflows/publish.yml)
 
