@@ -26,7 +26,7 @@ PKG_ASSETS = ROOT / "src" / "launchline" / "assets"
 
 BG_FILL = (17, 24, 39)  # #111827
 BG_STROKE = (55, 65, 81)  # #374151
-GRAY = (100, 116, 139)  # #64748B
+GRAY = (148, 163, 184)  # #94A3B8
 WHITE = (248, 250, 252)  # #F8FAFC
 GREEN = (34, 197, 94)  # #22C55E
 
