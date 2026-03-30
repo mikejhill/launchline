@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `command` config key now accepts a list of strings (e.g.,
+  `command = ["ssh", "-t", "my server"]`) for easier argument handling,
+  especially with values containing spaces
+- `--config-path` CLI flag to print the active configuration file path
+
+### Fixed
+
+- PyPI package page now renders README images correctly (paths are rewritten
+  to absolute URLs during the release build)
+- Release artifacts no longer accidentally include non-distribution files
+
 ## [0.1.0] - 2026-03-30
 
 ### Added
