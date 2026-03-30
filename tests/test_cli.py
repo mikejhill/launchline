@@ -140,7 +140,8 @@ class TestConfigPathFlag:
         from launchline.__main__ import main
 
         monkeypatch.setattr(
-            "sys.argv", ["launchline", "--config-path", "--config", str(cfg)],
+            "sys.argv",
+            ["launchline", "--config-path", "--config", str(cfg)],
         )
         main()
         assert capsys.readouterr().out.strip() == str(cfg), (
