@@ -97,7 +97,7 @@ Config file format is [TOML](https://toml.io). The file has an optional
 | `title`                  | string | `"LaunchLine"` | Window/tab title shown while the launcher is active               |
 | `clear_on_launch`        | bool   | `true`         | Clear terminal before launching an entry                          |
 | `show_exit`              | bool   | `true`         | Show the **Exit** entry (shortcut `0`) in the menu                |
-| `ghost_text`             | bool   | `false`        | Show the highlighted entry name as an autocomplete hint on prompt |
+| `ghost_text`             | bool   | `true`         | Show the highlighted entry name as an autocomplete hint on prompt |
 | `instant_numeric_launch` | bool   | `true`         | Pressing a digit immediately launches the matching entry          |
 
 ### `[[entries]]`
@@ -131,7 +131,7 @@ on_exit = "restart"
 title = "My Tools"
 clear_on_launch = true
 show_exit = true
-ghost_text = false
+ghost_text = true
 instant_numeric_launch = true
 
 [[entries]]

@@ -66,7 +66,7 @@ class LaunchLineConfig:
     title: str = "LaunchLine"
     clear_on_launch: bool = True
     show_exit: bool = True
-    ghost_text: bool = False
+    ghost_text: bool = True
     instant_numeric_launch: bool = True
 
 
@@ -94,7 +94,7 @@ class ConfigLoader:
 # title = "LaunchLine"
 # clear_on_launch = true
 # show_exit = true
-# ghost_text = false
+# ghost_text = true
 # instant_numeric_launch = true
 
 [[entries]]
@@ -176,7 +176,7 @@ description = "PowerShell 7"
         title: str = settings.get("title", "LaunchLine")
         clear_on_launch: bool = settings.get("clear_on_launch", True)
         show_exit: bool = settings.get("show_exit", True)
-        ghost_text: bool = settings.get("ghost_text", False)
+        ghost_text: bool = settings.get("ghost_text", True)
         instant_numeric_launch: bool = settings.get("instant_numeric_launch", True)
 
         raw_entries: list[dict[str, object]] = raw.get("entries", [])

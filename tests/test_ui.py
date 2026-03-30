@@ -637,22 +637,22 @@ class TestLaunchLineUIGhostText:
         ghost = ui._ghost_text()
         assert ghost == "Exit"
 
-    def test_ghost_text_disabled_by_default(
+    def test_ghost_text_enabled_by_default(
         self, sample_config: LaunchLineConfig
     ) -> None:
-        """Ghost text is disabled by default (ghost_text=False)."""
+        """Ghost text is enabled by default (ghost_text=True)."""
         ui = LaunchLineUI(sample_config)
-        assert ui._ghost_text_enabled is False, "ghost_text should default to False"
+        assert ui._ghost_text_enabled is True, "ghost_text should default to True"
 
-    def test_ghost_text_enabled_via_config(self) -> None:
-        """Ghost text renders when ghost_text=True."""
+    def test_ghost_text_disabled_via_config(self) -> None:
+        """Ghost text hidden when ghost_text=False."""
         config = LaunchLineConfig(
             entries=(EntryConfig(name="Tool", command="tool"),),
-            ghost_text=True,
+            ghost_text=False,
         )
         ui = LaunchLineUI(config)
-        assert ui._ghost_text_enabled is True, (
-            "ghost_text=True should enable the feature"
+        assert ui._ghost_text_enabled is False, (
+            "ghost_text=False should disable the feature"
         )
 
 
