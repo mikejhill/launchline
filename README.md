@@ -1,7 +1,7 @@
 # LaunchLine
 
 [![CI](https://github.com/mikejhill/launchline/actions/workflows/ci.yml/badge.svg)](https://github.com/mikejhill/launchline/actions/workflows/ci.yml)
-[![Publish](https://github.com/mikejhill/launchline/actions/workflows/publish.yml/badge.svg)](https://github.com/mikejhill/launchline/actions/workflows/publish.yml)
+[![Release](https://github.com/mikejhill/launchline/actions/workflows/release.yml/badge.svg)](https://github.com/mikejhill/launchline/actions/workflows/release.yml)
 
 A lightweight terminal launcher for interactive CLI tools. Define your frequently
 used commands in a TOML config file, then pick them from a fuzzy-searchable menu
