@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/mikejhill/launchline/actions/workflows/ci.yml/badge.svg)](https://github.com/mikejhill/launchline/actions/workflows/ci.yml)
 [![Release](https://github.com/mikejhill/launchline/actions/workflows/release.yml/badge.svg)](https://github.com/mikejhill/launchline/actions/workflows/release.yml)
+[![PyPI](https://img.shields.io/pypi/v/launchline)](https://pypi.org/project/launchline/)
+[![Python](https://img.shields.io/pypi/pyversions/launchline)](https://pypi.org/project/launchline/)
 
 A lightweight terminal launcher for interactive CLI tools. Define your frequently
 used commands in a TOML config file, then pick them from a fuzzy-searchable menu

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-30
+
 ### Added
 
 - `command` config key now accepts a list of strings (e.g.,
@@ -19,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PyPI package page now renders README images correctly (paths are rewritten
   to absolute URLs during the release build)
 - Release artifacts no longer accidentally include non-distribution files
+- Release workflow now produces correct version numbers (fixed dirty-tree
+  version detection via `SETUPTOOLS_SCM_PRETEND_VERSION`)
 
 ## [0.1.0] - 2026-03-30
 
