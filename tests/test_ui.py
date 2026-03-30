@@ -22,9 +22,11 @@ class TestFuzzyScore:
     """Tests for the FuzzyMatcher.score method."""
 
     def test_empty_query_matches_everything(self) -> None:
-        assert FuzzyMatcher.score("", "anything") == 0
+        assert FuzzyMatcher.score("", "anything") == 0, (
+            "Empty query should return score 0 for any candidate"
+        )
 
-    def test_exact_match(self) -> None:
+    def test_exact_match_returns_positive_score(self) -> None:
         score = FuzzyMatcher.score("abc", "abc")
         assert score is not None, "Exact match should return a score, got None"
         assert score > 0, f"Exact match score should be positive, got {score}"
@@ -33,7 +35,7 @@ class TestFuzzyScore:
         result = FuzzyMatcher.score("xyz", "abc")
         assert result is None, f"Non-matching query should return None, got {result}"
 
-    def test_case_insensitive(self) -> None:
+    def test_case_insensitive_match_returns_score(self) -> None:
         assert FuzzyMatcher.score("ABC", "abc") is not None, (
             "Upper query vs lower candidate should still match"
         )
@@ -41,11 +43,11 @@ class TestFuzzyScore:
             "Lower query vs upper candidate should still match"
         )
 
-    def test_subsequence_match(self) -> None:
+    def test_subsequence_match_returns_positive_score(self) -> None:
         score = FuzzyMatcher.score("cl", "Claude Code")
         assert score is not None, "Subsequence 'cl' should match 'Claude Code'"
 
-    def test_contiguous_scores_higher(self) -> None:
+    def test_contiguous_match_scores_higher_than_sparse(self) -> None:
         contiguous = FuzzyMatcher.score("cla", "Claude")
         sparse = FuzzyMatcher.score("cla", "xcxlxax")
         assert contiguous is not None, "Contiguous 'cla' in 'Claude' should match"
@@ -55,7 +57,7 @@ class TestFuzzyScore:
             f"than sparse match ({sparse})"
         )
 
-    def test_word_boundary_bonus(self) -> None:
+    def test_word_boundary_match_scores_higher(self) -> None:
         boundary = FuzzyMatcher.score("cc", "Claude Code")
         mid = FuzzyMatcher.score("cc", "success")
         assert boundary is not None, (
@@ -83,7 +85,7 @@ class TestFuzzyScore:
             ("cx", "Codex CLI", True),
         ],
     )
-    def test_various_matches(
+    def test_parametrized_match_expectations(
         self, query: str, candidate: str, expected_match: bool
     ) -> None:
         result = FuzzyMatcher.score(query, candidate)
@@ -123,17 +125,25 @@ class TestLaunchLineUIFiltering:
         ui._highlight_idx = 2
         ui._query = "cop"
         ui._update_filter()
-        assert ui._highlight_idx == 0
+        assert ui._highlight_idx == 0, (
+            f"Expected highlight reset to 0, got {ui._highlight_idx}"
+        )
 
     def test_empty_query_shows_all(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         ui._query = "copilot"
         ui._update_filter()
-        assert len(ui._visible) < len(sample_config.entries)
+        assert len(ui._visible) < len(sample_config.entries), (
+            f"Filtered results ({len(ui._visible)}) should be fewer "
+            f"than total entries ({len(sample_config.entries)})"
+        )
         ui._query = ""
         ui._update_filter()
-        assert len(ui._visible) == len(sample_config.entries)
+        assert len(ui._visible) == len(sample_config.entries), (
+            f"Clearing query should restore all entries, "
+            f"got {len(ui._visible)} of {len(sample_config.entries)}"
+        )
 
     def test_no_matches_gives_empty_list(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
@@ -161,7 +171,7 @@ class TestLaunchLineUIFiltering:
 class TestLaunchLineUINumericFilter:
     """Tests for numeric prefix filtering with >9 entries."""
 
-    def test_numeric_filter_by_prefix(
+    def test_numeric_prefix_filters_matching_entries(
         self, many_entries_config: LaunchLineConfig
     ) -> None:
         ui = LaunchLineUI(many_entries_config)
@@ -176,7 +186,7 @@ class TestLaunchLineUINumericFilter:
         assert 12 in numbers, "Entry 12 should appear for numeric prefix '1'"
         assert 2 not in numbers, "Entry 2 should not appear for numeric prefix '1'"
 
-    def test_numeric_filter_two_digits(
+    def test_two_digit_prefix_matches_single_entry(
         self, many_entries_config: LaunchLineConfig
     ) -> None:
         ui = LaunchLineUI(many_entries_config)
@@ -192,11 +202,13 @@ class TestLaunchLineUINumericFilter:
 class TestLaunchLineUIDisplayList:
     """Tests for the display list (visible + exit)."""
 
-    def test_display_list_appends_exit(self, sample_config: LaunchLineConfig) -> None:
+    def test_display_list_includes_exit_as_last_entry(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         dl = ui._display_list()
-        assert dl[-1].number == 0
+        assert dl[-1].number == 0, f"Exit entry number should be 0, got {dl[-1].number}"
         assert dl[-1].entry is _EXIT_ENTRY, "Last display item should be the exit entry"
         assert len(dl) == len(sample_config.entries) + 1, (
             f"Display list should have entries + exit = "
@@ -207,36 +219,50 @@ class TestLaunchLineUIDisplayList:
 class TestLaunchLineUIKeyHandling:
     """Tests for the _on_key method."""
 
-    def test_enter_selects_highlighted(self, sample_config: LaunchLineConfig) -> None:
+    def test_enter_returns_highlighted_entry(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         result = ui._on_key("enter")
         assert result is not None, "Enter should select the highlighted entry"
 
-    def test_down_then_enter(self, sample_config: LaunchLineConfig) -> None:
+    def test_down_then_enter_selects_second_entry(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         ui._on_key("down")
         result = ui._on_key("enter")
         assert result is not None, "Enter should select the highlighted entry"
 
-    def test_up_at_top_wraps_to_exit(self, sample_config: LaunchLineConfig) -> None:
+    def test_up_at_top_wraps_to_last_entry(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         ui._on_key("up")
         # display_list has entries + exit, so wrapping goes to last = exit
         dl = ui._display_list()
-        assert ui._highlight_idx == len(dl) - 1
+        assert ui._highlight_idx == len(dl) - 1, (
+            f"Expected highlight at last index {len(dl) - 1}, got {ui._highlight_idx}"
+        )
 
-    def test_down_past_exit_wraps_to_top(self, sample_config: LaunchLineConfig) -> None:
+    def test_down_past_last_wraps_to_first(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         dl = ui._display_list()
         for _ in range(len(dl) - 1):
             ui._on_key("down")
-        assert ui._highlight_idx == len(dl) - 1
+        assert ui._highlight_idx == len(dl) - 1, (
+            f"Expected highlight at last index {len(dl) - 1}, got {ui._highlight_idx}"
+        )
         ui._on_key("down")
-        assert ui._highlight_idx == 0
+        assert ui._highlight_idx == 0, (
+            f"Expected wrap to index 0, got {ui._highlight_idx}"
+        )
 
     def test_enter_on_exit_returns_exit_entry(
         self, sample_config: LaunchLineConfig
@@ -250,14 +276,16 @@ class TestLaunchLineUIKeyHandling:
         result = ui._on_key("enter")
         assert result is _EXIT_ENTRY, "Selecting exit row should return _EXIT_ENTRY"
 
-    def test_escape_with_query_clears(self, sample_config: LaunchLineConfig) -> None:
+    def test_escape_clears_query_when_present(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         ui._query = "test"
         ui._cursor = 4
         ui._update_filter()
         result = ui._on_key("escape")
-        assert result is None  # continue
+        assert result is None, f"Expected None (continue), got {result!r}"
         assert ui._query == "", "Escape should clear the query"
         assert ui._cursor == 0, "Escape should reset cursor to 0"
 
@@ -269,7 +297,7 @@ class TestLaunchLineUIKeyHandling:
         with pytest.raises(_UserExitError):
             ui._on_key("escape")
 
-    def test_digit_immediate_launch_with_few_entries(
+    def test_digit_launches_immediately_with_few_entries(
         self, sample_config: LaunchLineConfig
     ) -> None:
         ui = LaunchLineUI(sample_config)
@@ -277,7 +305,9 @@ class TestLaunchLineUIKeyHandling:
         result = ui._on_key("2")
         assert result is not None, "Digit 2 should immediately launch entry 2"
 
-    def test_invalid_digit_ignored(self, sample_config: LaunchLineConfig) -> None:
+    def test_out_of_range_digit_returns_none(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         result = ui._on_key("9")  # only 4 entries
@@ -298,9 +328,11 @@ class TestLaunchLineUIKeyHandling:
         ui._cursor = 1
         ui._update_filter()
         result = ui._on_key("0")
-        assert ui._query == "10"
+        assert ui._query == "10", f"Expected query '10', got {ui._query!r}"
         # Not an exit — just a query update
-        assert result is None or isinstance(result, EntryConfig)
+        assert result is None or isinstance(result, EntryConfig), (
+            f"Expected None or EntryConfig, got {result!r}"
+        )
 
     def test_digit_enters_numeric_mode_with_many_entries(
         self, many_entries_config: LaunchLineConfig
@@ -316,15 +348,17 @@ class TestLaunchLineUIKeyHandling:
             "Ambiguous numeric prefix should show multiple entries"
         )
 
-    def test_backspace_removes_character(self, sample_config: LaunchLineConfig) -> None:
+    def test_backspace_removes_last_query_char(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         ui._query = "cl"
         ui._cursor = 2
         ui._update_filter()
         ui._on_key("backspace")
-        assert ui._query == "c"
-        assert ui._cursor == 1
+        assert ui._query == "c", f"Expected query 'c', got {ui._query!r}"
+        assert ui._cursor == 1, f"Expected cursor at 1, got {ui._cursor}"
 
 
 class TestLaunchLineUITextEditing:
@@ -338,7 +372,7 @@ class TestLaunchLineUITextEditing:
         ui._query = "hello"
         ui._cursor = 5
         ui._on_key("ctrl-a")
-        assert ui._cursor == 0
+        assert ui._cursor == 0, f"Expected cursor at 0, got {ui._cursor}"
 
     def test_ctrl_e_moves_cursor_to_end(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
@@ -346,7 +380,7 @@ class TestLaunchLineUITextEditing:
         ui._query = "hello"
         ui._cursor = 2
         ui._on_key("ctrl-e")
-        assert ui._cursor == 5
+        assert ui._cursor == 5, f"Expected cursor at 5, got {ui._cursor}"
 
     def test_ctrl_u_kills_line_before_cursor(
         self, sample_config: LaunchLineConfig
@@ -356,8 +390,8 @@ class TestLaunchLineUITextEditing:
         ui._query = "abcdef"
         ui._cursor = 3
         ui._on_key("ctrl-u")
-        assert ui._query == "def"
-        assert ui._cursor == 0
+        assert ui._query == "def", f"Expected query 'def', got {ui._query!r}"
+        assert ui._cursor == 0, f"Expected cursor at 0, got {ui._cursor}"
 
     def test_ctrl_k_kills_line_after_cursor(
         self, sample_config: LaunchLineConfig
@@ -367,7 +401,7 @@ class TestLaunchLineUITextEditing:
         ui._query = "abcdef"
         ui._cursor = 3
         ui._on_key("ctrl-k")
-        assert ui._query == "abc"
+        assert ui._query == "abc", f"Expected query 'abc', got {ui._query!r}"
 
     def test_ctrl_w_deletes_word_back(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
@@ -375,8 +409,8 @@ class TestLaunchLineUITextEditing:
         ui._query = "hello world"
         ui._cursor = 11
         ui._on_key("ctrl-w")
-        assert ui._query == "hello "
-        assert ui._cursor == 6
+        assert ui._query == "hello ", f"Expected query 'hello ', got {ui._query!r}"
+        assert ui._cursor == 6, f"Expected cursor at 6, got {ui._cursor}"
 
     def test_ctrl_backspace_deletes_word_back(
         self, sample_config: LaunchLineConfig
@@ -386,10 +420,10 @@ class TestLaunchLineUITextEditing:
         ui._query = "one two three"
         ui._cursor = 13
         ui._on_key("ctrl-backspace")
-        assert ui._query == "one two "
-        assert ui._cursor == 8
+        assert ui._query == "one two ", f"Expected query 'one two ', got {ui._query!r}"
+        assert ui._cursor == 8, f"Expected cursor at 8, got {ui._cursor}"
 
-    def test_backspace_at_cursor_mid_position(
+    def test_backspace_at_mid_position_removes_preceding_char(
         self, sample_config: LaunchLineConfig
     ) -> None:
         ui = LaunchLineUI(sample_config)
@@ -397,10 +431,12 @@ class TestLaunchLineUITextEditing:
         ui._query = "abcd"
         ui._cursor = 2
         ui._on_key("backspace")
-        assert ui._query == "acd"
-        assert ui._cursor == 1
+        assert ui._query == "acd", f"Expected query 'acd', got {ui._query!r}"
+        assert ui._cursor == 1, f"Expected cursor at 1, got {ui._cursor}"
 
-    def test_char_insert_at_cursor_mid(self, sample_config: LaunchLineConfig) -> None:
+    def test_char_at_mid_position_inserts_before_cursor(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         # Start fresh to avoid digit-launch behavior
@@ -408,16 +444,18 @@ class TestLaunchLineUITextEditing:
         ui._cursor = 1
         ui._update_filter()
         ui._on_key("b")
-        assert ui._query == "abc"
-        assert ui._cursor == 2
+        assert ui._query == "abc", f"Expected query 'abc', got {ui._query!r}"
+        assert ui._cursor == 2, f"Expected cursor at 2, got {ui._cursor}"
 
-    def test_ctrl_b_moves_cursor_back(self, sample_config: LaunchLineConfig) -> None:
+    def test_ctrl_b_moves_cursor_back_one_position(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         ui._query = "hello"
         ui._cursor = 3
         ui._on_key("ctrl-b")
-        assert ui._cursor == 2
+        assert ui._cursor == 2, f"Expected cursor at 2, got {ui._cursor}"
 
     def test_ctrl_b_at_start_stays(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
@@ -425,15 +463,17 @@ class TestLaunchLineUITextEditing:
         ui._query = "hello"
         ui._cursor = 0
         ui._on_key("ctrl-b")
-        assert ui._cursor == 0
+        assert ui._cursor == 0, f"Expected cursor at 0, got {ui._cursor}"
 
-    def test_ctrl_f_moves_cursor_forward(self, sample_config: LaunchLineConfig) -> None:
+    def test_ctrl_f_moves_cursor_forward_one_position(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         ui._query = "hello"
         ui._cursor = 2
         ui._on_key("ctrl-f")
-        assert ui._cursor == 3
+        assert ui._cursor == 3, f"Expected cursor at 3, got {ui._cursor}"
 
     def test_ctrl_f_at_end_stays(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
@@ -441,7 +481,7 @@ class TestLaunchLineUITextEditing:
         ui._query = "hello"
         ui._cursor = 5
         ui._on_key("ctrl-f")
-        assert ui._cursor == 5
+        assert ui._cursor == 5, f"Expected cursor at 5, got {ui._cursor}"
 
     def test_ctrl_d_deletes_char_under_cursor(
         self, sample_config: LaunchLineConfig
@@ -451,8 +491,8 @@ class TestLaunchLineUITextEditing:
         ui._query = "abcdef"
         ui._cursor = 2
         ui._on_key("ctrl-d")
-        assert ui._query == "abdef"
-        assert ui._cursor == 2
+        assert ui._query == "abdef", f"Expected query 'abdef', got {ui._query!r}"
+        assert ui._cursor == 2, f"Expected cursor at 2, got {ui._cursor}"
 
     def test_ctrl_d_at_end_does_nothing(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
@@ -460,7 +500,9 @@ class TestLaunchLineUITextEditing:
         ui._query = "abc"
         ui._cursor = 3
         ui._on_key("ctrl-d")
-        assert ui._query == "abc"
+        assert ui._query == "abc", (
+            f"Expected query unchanged at 'abc', got {ui._query!r}"
+        )
 
     def test_ctrl_d_on_empty_query_exits(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
@@ -474,24 +516,28 @@ class TestLaunchLineUITextEditing:
         ui._query = "abcd"
         ui._cursor = 3
         ui._on_key("ctrl-h")
-        assert ui._query == "abd"
-        assert ui._cursor == 2
+        assert ui._query == "abd", f"Expected query 'abd', got {ui._query!r}"
+        assert ui._cursor == 2, f"Expected cursor at 2, got {ui._cursor}"
 
-    def test_alt_b_moves_word_back(self, sample_config: LaunchLineConfig) -> None:
+    def test_alt_b_moves_cursor_back_one_word(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         ui._query = "one two three"
         ui._cursor = 13
         ui._on_key("alt-b")
-        assert ui._cursor == 8
+        assert ui._cursor == 8, f"Expected cursor at 8, got {ui._cursor}"
 
-    def test_alt_f_moves_word_forward(self, sample_config: LaunchLineConfig) -> None:
+    def test_alt_f_moves_cursor_forward_one_word(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         ui._query = "one two three"
         ui._cursor = 0
         ui._on_key("alt-f")
-        assert ui._cursor == 4
+        assert ui._cursor == 4, f"Expected cursor at 4, got {ui._cursor}"
 
     def test_alt_d_deletes_word_forward(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
@@ -499,8 +545,10 @@ class TestLaunchLineUITextEditing:
         ui._query = "one two three"
         ui._cursor = 4
         ui._on_key("alt-d")
-        assert ui._query == "one three"
-        assert ui._cursor == 4
+        assert ui._query == "one three", (
+            f"Expected query 'one three', got {ui._query!r}"
+        )
+        assert ui._cursor == 4, f"Expected cursor at 4, got {ui._cursor}"
 
     def test_alt_d_at_end_does_nothing(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
@@ -508,7 +556,9 @@ class TestLaunchLineUITextEditing:
         ui._query = "hello"
         ui._cursor = 5
         ui._on_key("alt-d")
-        assert ui._query == "hello"
+        assert ui._query == "hello", (
+            f"Expected query unchanged at 'hello', got {ui._query!r}"
+        )
 
 
 class TestLaunchLineUIRun:
@@ -536,7 +586,9 @@ class TestLaunchLineUIRun:
         result = ui.run()
         assert result is None, "KeyboardInterrupt should cause run() to return None"
 
-    def test_run_navigates_and_selects(self, sample_config: LaunchLineConfig) -> None:
+    def test_run_returns_entry_after_navigation(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
         keys = iter(["down", "down", "enter"])
         ui = LaunchLineUI(sample_config, _key_reader=lambda: next(keys))
         result = ui.run()
@@ -579,22 +631,30 @@ class TestLaunchLineUIRun:
                 ui._on_key("down")
             for _ in range(11):
                 ui._on_key("up")
-            assert ui._highlight_idx == 0
-            assert ui._viewport_offset == 0
+            assert ui._highlight_idx == 0, (
+                f"Expected highlight at 0, got {ui._highlight_idx}"
+            )
+            assert ui._viewport_offset == 0, (
+                f"Expected viewport offset 0, got {ui._viewport_offset}"
+            )
 
     def test_max_list_height_capped_at_10(self) -> None:
         size = os.terminal_size((80, 50))
         with patch(self._TERM_PATCH, return_value=size):
             config = LaunchLineConfig(entries=())
             ui = LaunchLineUI(config)
-            assert ui._max_visible_entries() == 10
+            assert ui._max_visible_entries() == 10, (
+                f"Expected max 10, got {ui._max_visible_entries()}"
+            )
 
-    def test_max_list_height_shrinks_for_small_terminal(self) -> None:
+    def test_max_list_height_reduced_for_small_terminal(self) -> None:
         size = os.terminal_size((80, 12))
         with patch(self._TERM_PATCH, return_value=size):
             config = LaunchLineConfig(entries=())
             ui = LaunchLineUI(config)
-            assert ui._max_visible_entries() < 10
+            assert ui._max_visible_entries() < 10, (
+                f"Expected max entries < 10, got {ui._max_visible_entries()}"
+            )
 
 
 class TestLaunchLineUIGhostText:
@@ -606,7 +666,9 @@ class TestLaunchLineUIGhostText:
         ui = LaunchLineUI(sample_config)
         ui._reset()
         ghost = ui._ghost_text()
-        assert ghost == "GitHub Copilot CLI"
+        assert ghost == "GitHub Copilot CLI", (
+            f"Expected ghost 'GitHub Copilot CLI', got {ghost!r}"
+        )
 
     def test_ghost_shows_name_regardless_of_cursor(
         self, sample_config: LaunchLineConfig
@@ -616,7 +678,9 @@ class TestLaunchLineUIGhostText:
         ui._query = "test"
         ui._cursor = 2  # cursor not at end — still shows hint
         ghost = ui._ghost_text()
-        assert ghost == "GitHub Copilot CLI"
+        assert ghost == "GitHub Copilot CLI", (
+            f"Expected ghost 'GitHub Copilot CLI', got {ghost!r}"
+        )
 
     def test_ghost_empty_when_no_visible(self, sample_config: LaunchLineConfig) -> None:
         ui = LaunchLineUI(sample_config)
@@ -625,7 +689,7 @@ class TestLaunchLineUIGhostText:
         ui._cursor = 5
         ui._update_filter()
         ghost = ui._ghost_text()
-        assert ghost == ""
+        assert ghost == "", f"Expected empty ghost text, got {ghost!r}"
 
     def test_ghost_shows_exit_when_exit_highlighted(
         self, sample_config: LaunchLineConfig
@@ -635,7 +699,7 @@ class TestLaunchLineUIGhostText:
         # Navigate up from top to wrap to Exit (last in display list)
         ui._on_key("up")
         ghost = ui._ghost_text()
-        assert ghost == "Exit"
+        assert ghost == "Exit", f"Expected ghost 'Exit', got {ghost!r}"
 
     def test_ghost_text_enabled_by_default(
         self, sample_config: LaunchLineConfig
@@ -662,7 +726,9 @@ class TestNumericTrigger:
     def test_enabled_by_default(self, sample_config: LaunchLineConfig) -> None:
         """Numeric trigger is enabled by default."""
         ui = LaunchLineUI(sample_config)
-        assert ui._numeric_trigger is True
+        assert ui._numeric_trigger is True, (
+            f"Expected numeric_trigger True, got {ui._numeric_trigger!r}"
+        )
 
     def test_digit_launches_immediately_when_enabled(
         self, sample_config: LaunchLineConfig
@@ -672,7 +738,9 @@ class TestNumericTrigger:
         ui._reset()
         result = ui._on_key("2")
         assert result is not None, "Digit 2 should immediately launch"
-        assert result.name == "Claude Code"
+        assert result.name == "Claude Code", (
+            f"Expected 'Claude Code', got {result.name!r}"
+        )
 
     def test_digit_enters_query_when_disabled(self) -> None:
         """With numeric_trigger=False, digit goes to search query."""
@@ -769,82 +837,117 @@ class TestKittyProtocolDecoder:
     """Tests for the Kitty keyboard protocol CSI u decoder."""
 
     def test_escape_codepoint_returns_escape(self) -> None:
-        assert KeyReader._decode_kitty_key("27") == "escape"
+        result = KeyReader._decode_kitty_key("27")
+        assert result == "escape", f"Expected 'escape' for codepoint 27, got {result!r}"
 
     def test_enter_codepoint_returns_enter(self) -> None:
-        assert KeyReader._decode_kitty_key("13") == "enter"
+        result = KeyReader._decode_kitty_key("13")
+        assert result == "enter", f"Expected 'enter' for codepoint 13, got {result!r}"
 
     def test_backspace_codepoint_returns_backspace(self) -> None:
-        assert KeyReader._decode_kitty_key("127") == "backspace"
+        result = KeyReader._decode_kitty_key("127")
+        assert result == "backspace", (
+            f"Expected 'backspace' for codepoint 127, got {result!r}"
+        )
 
     def test_ctrl_backspace_returns_ctrl_backspace(self) -> None:
         # modifier 5 = 1 + ctrl(4)
-        assert KeyReader._decode_kitty_key("127;5") == "ctrl-backspace"
+        result = KeyReader._decode_kitty_key("127;5")
+        assert result == "ctrl-backspace", (
+            f"Expected 'ctrl-backspace' for 127;5, got {result!r}"
+        )
 
     def test_alt_backspace_returns_alt_backspace(self) -> None:
         # modifier 3 = 1 + alt(2)
-        assert KeyReader._decode_kitty_key("127;3") == "alt-backspace"
+        result = KeyReader._decode_kitty_key("127;3")
+        assert result == "alt-backspace", (
+            f"Expected 'alt-backspace' for 127;3, got {result!r}"
+        )
 
     def test_ctrl_a_returns_ctrl_a(self) -> None:
-        assert KeyReader._decode_kitty_key("97;5") == "ctrl-a"
+        result = KeyReader._decode_kitty_key("97;5")
+        assert result == "ctrl-a", f"Expected 'ctrl-a' for 97;5, got {result!r}"
 
     def test_ctrl_e_returns_ctrl_e(self) -> None:
-        assert KeyReader._decode_kitty_key("101;5") == "ctrl-e"
+        result = KeyReader._decode_kitty_key("101;5")
+        assert result == "ctrl-e", f"Expected 'ctrl-e' for 101;5, got {result!r}"
 
     def test_ctrl_k_returns_ctrl_k(self) -> None:
-        assert KeyReader._decode_kitty_key("107;5") == "ctrl-k"
+        result = KeyReader._decode_kitty_key("107;5")
+        assert result == "ctrl-k", f"Expected 'ctrl-k' for 107;5, got {result!r}"
 
     def test_ctrl_u_returns_ctrl_u(self) -> None:
-        assert KeyReader._decode_kitty_key("117;5") == "ctrl-u"
+        result = KeyReader._decode_kitty_key("117;5")
+        assert result == "ctrl-u", f"Expected 'ctrl-u' for 117;5, got {result!r}"
 
     def test_ctrl_w_returns_ctrl_w(self) -> None:
-        assert KeyReader._decode_kitty_key("119;5") == "ctrl-w"
+        result = KeyReader._decode_kitty_key("119;5")
+        assert result == "ctrl-w", f"Expected 'ctrl-w' for 119;5, got {result!r}"
 
     def test_ctrl_b_returns_ctrl_b(self) -> None:
-        assert KeyReader._decode_kitty_key("98;5") == "ctrl-b"
+        result = KeyReader._decode_kitty_key("98;5")
+        assert result == "ctrl-b", f"Expected 'ctrl-b' for 98;5, got {result!r}"
 
     def test_ctrl_d_returns_ctrl_d(self) -> None:
-        assert KeyReader._decode_kitty_key("100;5") == "ctrl-d"
+        result = KeyReader._decode_kitty_key("100;5")
+        assert result == "ctrl-d", f"Expected 'ctrl-d' for 100;5, got {result!r}"
 
     def test_ctrl_f_returns_ctrl_f(self) -> None:
-        assert KeyReader._decode_kitty_key("102;5") == "ctrl-f"
+        result = KeyReader._decode_kitty_key("102;5")
+        assert result == "ctrl-f", f"Expected 'ctrl-f' for 102;5, got {result!r}"
 
     def test_ctrl_h_returns_ctrl_h(self) -> None:
-        assert KeyReader._decode_kitty_key("104;5") == "ctrl-h"
+        result = KeyReader._decode_kitty_key("104;5")
+        assert result == "ctrl-h", f"Expected 'ctrl-h' for 104;5, got {result!r}"
 
     def test_alt_b_returns_alt_b(self) -> None:
         # modifier 3 = 1 + alt(2)
-        assert KeyReader._decode_kitty_key("98;3") == "alt-b"
+        result = KeyReader._decode_kitty_key("98;3")
+        assert result == "alt-b", f"Expected 'alt-b' for 98;3, got {result!r}"
 
     def test_alt_d_returns_alt_d(self) -> None:
-        assert KeyReader._decode_kitty_key("100;3") == "alt-d"
+        result = KeyReader._decode_kitty_key("100;3")
+        assert result == "alt-d", f"Expected 'alt-d' for 100;3, got {result!r}"
 
     def test_alt_f_returns_alt_f(self) -> None:
-        assert KeyReader._decode_kitty_key("102;3") == "alt-f"
+        result = KeyReader._decode_kitty_key("102;3")
+        assert result == "alt-f", f"Expected 'alt-f' for 102;3, got {result!r}"
 
     def test_ctrl_c_raises_keyboard_interrupt(self) -> None:
         with pytest.raises(KeyboardInterrupt):
             KeyReader._decode_kitty_key("99;5")
 
-    def test_printable_chars_return_literal(self) -> None:
-        assert KeyReader._decode_kitty_key("97") == "a"
-        assert KeyReader._decode_kitty_key("65") == "A"
-        assert KeyReader._decode_kitty_key("48") == "0"
+    def test_printable_codepoints_return_literal_chars(self) -> None:
+        result_a = KeyReader._decode_kitty_key("97")
+        assert result_a == "a", f"Expected 'a' for codepoint 97, got {result_a!r}"
+        result_upper_a = KeyReader._decode_kitty_key("65")
+        assert result_upper_a == "A", (
+            f"Expected 'A' for codepoint 65, got {result_upper_a!r}"
+        )
+        result_0 = KeyReader._decode_kitty_key("48")
+        assert result_0 == "0", f"Expected '0' for codepoint 48, got {result_0!r}"
 
     def test_release_event_returns_empty(self) -> None:
         # modifier 1; event_type 3 = release
-        assert KeyReader._decode_kitty_key("27;1:3") == ""
+        result = KeyReader._decode_kitty_key("27;1:3")
+        assert result == "", f"Expected empty string for release event, got {result!r}"
 
     def test_unknown_codepoint_returns_empty(self) -> None:
         # Private use area key
-        assert KeyReader._decode_kitty_key("57358") == ""
+        result = KeyReader._decode_kitty_key("57358")
+        assert result == "", (
+            f"Expected empty string for unknown codepoint, got {result!r}"
+        )
 
     def test_empty_params_returns_empty(self) -> None:
-        assert KeyReader._decode_kitty_key("") == ""
+        result = KeyReader._decode_kitty_key("")
+        assert result == "", f"Expected empty string for empty params, got {result!r}"
 
     def test_csi_arrow_a_returns_up_b_returns_down(self) -> None:
-        assert KeyReader._dispatch_csi("", "A") == "up"
-        assert KeyReader._dispatch_csi("", "B") == "down"
+        result_up = KeyReader._dispatch_csi("", "A")
+        assert result_up == "up", f"Expected 'up' for CSI A, got {result_up!r}"
+        result_down = KeyReader._dispatch_csi("", "B")
+        assert result_down == "down", f"Expected 'down' for CSI B, got {result_down!r}"
 
 
 @pytest.mark.skipif(sys.platform != "win32", reason="msvcrt only available on Windows")
@@ -859,7 +962,8 @@ class TestWindowsCSISequenceParsing:
         """ESC followed by [ triggers CSI parsing (e.g., arrow up)."""
         mock_getwch.side_effect = ["\x1b", "[", "A"]
         mock_kbhit.side_effect = [True, True]
-        assert KeyReader._read_key_windows() == "up"
+        result = KeyReader._read_key_windows()
+        assert result == "up", f"Expected 'up' for CSI A sequence, got {result!r}"
 
     @patch("msvcrt.kbhit")
     @patch("msvcrt.getwch")
@@ -869,7 +973,10 @@ class TestWindowsCSISequenceParsing:
         """Ctrl+Backspace via Kitty protocol: ESC [ 127 ; 5 u."""
         mock_getwch.side_effect = ["\x1b", "[", "1", "2", "7", ";", "5", "u"]
         mock_kbhit.side_effect = [True] + [True] * 7
-        assert KeyReader._read_key_windows() == "ctrl-backspace"
+        result = KeyReader._read_key_windows()
+        assert result == "ctrl-backspace", (
+            f"Expected 'ctrl-backspace' for Kitty 127;5, got {result!r}"
+        )
 
     @patch("msvcrt.kbhit")
     @patch("msvcrt.getwch")
@@ -890,7 +997,8 @@ class TestWindowsCSISequenceParsing:
         """Escape via Kitty protocol: ESC [ 27 u."""
         mock_getwch.side_effect = ["\x1b", "[", "2", "7", "u"]
         mock_kbhit.side_effect = [True] + [True] * 4
-        assert KeyReader._read_key_windows() == "escape"
+        result = KeyReader._read_key_windows()
+        assert result == "escape", f"Expected 'escape' for Kitty 27u, got {result!r}"
 
     @patch("msvcrt.kbhit")
     @patch("msvcrt.getwch")
@@ -900,7 +1008,8 @@ class TestWindowsCSISequenceParsing:
         """Bare ESC with nothing following returns 'escape'."""
         mock_getwch.return_value = "\x1b"
         mock_kbhit.return_value = False
-        assert KeyReader._read_key_windows() == "escape"
+        result = KeyReader._read_key_windows()
+        assert result == "escape", f"Expected 'escape' for bare ESC, got {result!r}"
 
     @patch("msvcrt.kbhit")
     @patch("msvcrt.getwch")
@@ -910,7 +1019,10 @@ class TestWindowsCSISequenceParsing:
         """Ctrl+Backspace with NumLock: ESC [ 127 ; 133 u (133 = 1+4+128)."""
         mock_getwch.side_effect = ["\x1b", "[", "1", "2", "7", ";", "1", "3", "3", "u"]
         mock_kbhit.side_effect = [True] + [True] * 9
-        assert KeyReader._read_key_windows() == "ctrl-backspace"
+        result = KeyReader._read_key_windows()
+        assert result == "ctrl-backspace", (
+            f"Expected 'ctrl-backspace' for NumLock variant, got {result!r}"
+        )
 
     @patch("msvcrt.kbhit")
     @patch("msvcrt.getwch")
@@ -920,10 +1032,15 @@ class TestWindowsCSISequenceParsing:
         """Printable char via Kitty: ESC [ 97 u → 'a'."""
         mock_getwch.side_effect = ["\x1b", "[", "9", "7", "u"]
         mock_kbhit.side_effect = [True] + [True] * 4
-        assert KeyReader._read_key_windows() == "a"
+        result = KeyReader._read_key_windows()
+        assert result == "a", f"Expected 'a' for Kitty 97u, got {result!r}"
 
     def test_dispatch_csi_kitty_u(self) -> None:
-        assert KeyReader._dispatch_csi("27", "u") == "escape"
+        result = KeyReader._dispatch_csi("27", "u")
+        assert result == "escape", f"Expected 'escape' for CSI 27u, got {result!r}"
 
-    def test_dispatch_csi_unknown_terminator(self) -> None:
-        assert KeyReader._dispatch_csi("", "C") == ""
+    def test_csi_unknown_terminator_returns_empty(self) -> None:
+        result = KeyReader._dispatch_csi("", "C")
+        assert result == "", (
+            f"Expected empty string for unknown CSI terminator, got {result!r}"
+        )

@@ -21,7 +21,7 @@ _README = Path(__file__).resolve().parent.parent / "README.md"
 class TestLoadConfig:
     """Tests for ConfigLoader.load."""
 
-    def test_loads_valid_config(self, sample_toml: Path) -> None:
+    def test_valid_toml_loads_all_entry_fields(self, sample_toml: Path) -> None:
         config = ConfigLoader.load(sample_toml)
         assert isinstance(config, LaunchLineConfig), (
             f"Expected LaunchLineConfig, got {type(config).__name__}"
@@ -30,7 +30,7 @@ class TestLoadConfig:
             f"Expected 2 entries, got {len(config.entries)}"
         )
 
-    def test_default_settings(self, tmp_path: Path) -> None:
+    def test_missing_settings_use_defaults(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
         cfg.write_text('[[entries]]\nname = "X"\ncommand = "x"\n', encoding="utf-8")
         config = ConfigLoader.load(cfg)
@@ -44,7 +44,7 @@ class TestLoadConfig:
         assert config.ghost_text is True, "Default ghost_text should be True"
         assert config.numeric_trigger is True, "Default numeric_trigger should be True"
 
-    def test_custom_settings(self, tmp_path: Path) -> None:
+    def test_custom_settings_override_defaults(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
         cfg.write_text(
             '[settings]\non_exit = "exit"\ntitle = "My Launcher"\n'
@@ -72,7 +72,9 @@ class TestLoadConfig:
             encoding="utf-8",
         )
         config = ConfigLoader.load(cfg)
-        assert config.entries[0].args == ("--flag", "val")
+        assert config.entries[0].args == ("--flag", "val"), (
+            f"Expected args ('--flag', 'val'), got {config.entries[0].args!r}"
+        )
 
     def test_entry_env_parsed(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
@@ -81,7 +83,9 @@ class TestLoadConfig:
             encoding="utf-8",
         )
         config = ConfigLoader.load(cfg)
-        assert config.entries[0].env == {"FOO": "bar"}
+        assert config.entries[0].env == {"FOO": "bar"}, (
+            f"Expected env {{'FOO': 'bar'}}, got {config.entries[0].env!r}"
+        )
 
     def test_rejects_empty_entries(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
@@ -89,19 +93,19 @@ class TestLoadConfig:
         with pytest.raises(ConfigurationError, match="No entries configured"):
             ConfigLoader.load(cfg)
 
-    def test_rejects_missing_name(self, tmp_path: Path) -> None:
+    def test_missing_name_raises_configuration_error(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
         cfg.write_text('[[entries]]\ncommand = "x"\n', encoding="utf-8")
         with pytest.raises(ConfigurationError, match="'name' and 'command'"):
             ConfigLoader.load(cfg)
 
-    def test_rejects_missing_command(self, tmp_path: Path) -> None:
+    def test_missing_command_raises_configuration_error(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
         cfg.write_text('[[entries]]\nname = "X"\n', encoding="utf-8")
         with pytest.raises(ConfigurationError, match="'name' and 'command'"):
             ConfigLoader.load(cfg)
 
-    def test_rejects_invalid_on_exit(self, tmp_path: Path) -> None:
+    def test_invalid_on_exit_raises_configuration_error(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
         cfg.write_text(
             '[settings]\non_exit = "crash"\n\n[[entries]]\nname = "X"\ncommand = "x"\n',
@@ -110,7 +114,7 @@ class TestLoadConfig:
         with pytest.raises(ConfigurationError, match="Invalid on_exit"):
             ConfigLoader.load(cfg)
 
-    def test_rejects_malformed_toml(self, tmp_path: Path) -> None:
+    def test_malformed_toml_raises_configuration_error(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
         cfg.write_text("this is not valid toml [[[", encoding="utf-8")
         with pytest.raises(ConfigurationError, match="Invalid TOML"):
@@ -143,7 +147,7 @@ class TestLoadConfig:
             "Non-existent working_directory should resolve to None"
         )
 
-    def test_rejects_invalid_args_type(self, tmp_path: Path) -> None:
+    def test_invalid_args_type_raises_configuration_error(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
         cfg.write_text(
             '[[entries]]\nname = "X"\ncommand = "x"\nargs = "not-a-list"\n',
@@ -152,7 +156,7 @@ class TestLoadConfig:
         with pytest.raises(ConfigurationError, match="'args' must be a list"):
             ConfigLoader.load(cfg)
 
-    def test_rejects_invalid_env_type(self, tmp_path: Path) -> None:
+    def test_invalid_env_type_raises_configuration_error(self, tmp_path: Path) -> None:
         cfg = tmp_path / "config.toml"
         cfg.write_text(
             '[[entries]]\nname = "X"\ncommand = "x"\nenv = "not-a-table"\n',
@@ -165,21 +169,23 @@ class TestLoadConfig:
 class TestResolveConfigPath:
     """Tests for ConfigLoader.resolve_path."""
 
-    def test_cli_path_takes_priority(self, sample_toml: Path) -> None:
+    def test_cli_path_takes_priority_over_env_var(self, sample_toml: Path) -> None:
         result = ConfigLoader.resolve_path(sample_toml)
-        assert result == sample_toml
+        assert result == sample_toml, f"Expected CLI path {sample_toml}, got {result}"
 
     def test_cli_path_missing_raises(self, tmp_path: Path) -> None:
         missing = tmp_path / "nope.toml"
         with pytest.raises(ConfigurationError, match="not found"):
             ConfigLoader.resolve_path(missing)
 
-    def test_env_var_path(
+    def test_env_var_resolves_config_path(
         self, sample_toml: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv(ConfigLoader.ENV_VAR_NAME, str(sample_toml))
         result = ConfigLoader.resolve_path(None)
-        assert result == sample_toml
+        assert result == sample_toml, (
+            f"Expected env var path {sample_toml}, got {result}"
+        )
 
     def test_env_var_missing_file_raises(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -188,7 +194,7 @@ class TestResolveConfigPath:
         with pytest.raises(ConfigurationError, match=ConfigLoader.ENV_VAR_NAME):
             ConfigLoader.resolve_path(None)
 
-    def test_no_config_creates_default(
+    def test_missing_config_creates_default_file(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.delenv(ConfigLoader.ENV_VAR_NAME, raising=False)
@@ -198,7 +204,9 @@ class TestResolveConfigPath:
             default_path,
         )
         result = ConfigLoader.resolve_path(None)
-        assert result == default_path
+        assert result == default_path, (
+            f"Expected default path {default_path}, got {result}"
+        )
         assert default_path.exists(), "Default config file should have been created"
         assert default_path.read_text(encoding="utf-8") == (
             ConfigLoader.STARTER_CONFIG
@@ -248,12 +256,16 @@ class TestConfigReferenceSync:
             "entries"
         }
         readme_fields = self._readme_table_keys("`[settings]`")
-        assert readme_fields == code_fields
+        assert readme_fields == code_fields, (
+            f"Expected settings fields {code_fields}, got {readme_fields}"
+        )
 
     def test_entry_fields_match_readme(self) -> None:
         code_fields = {f.name for f in dataclasses.fields(EntryConfig)}
         readme_fields = self._readme_table_keys("`[[entries]]`")
-        assert readme_fields == code_fields
+        assert readme_fields == code_fields, (
+            f"Expected entry fields {code_fields}, got {readme_fields}"
+        )
 
     def test_valid_on_exit_values_in_readme(self) -> None:
         text = _README.read_text(encoding="utf-8")

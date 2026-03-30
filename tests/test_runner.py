@@ -30,16 +30,21 @@ class TestEntryRunner:
         return EntryRunner(config)
 
     @patch("launchline.runner.subprocess.run")
-    def test_launches_command_with_args(self, mock_run: MagicMock) -> None:
+    def test_launch_passes_command_and_args_to_subprocess(
+        self, mock_run: MagicMock
+    ) -> None:
         mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
         entry = EntryConfig(name="Test", command="my-tool", args=("--flag",))
         runner = self._make_runner()
 
         exit_code = runner.launch(entry)
 
-        assert exit_code == 0
+        assert exit_code == 0, f"Expected exit code 0, got {exit_code}"
         call_args = mock_run.call_args
-        assert call_args[0][0] == ["my-tool", "--flag"]
+        expected_cmd = ["my-tool", "--flag"]
+        assert call_args[0][0] == expected_cmd, (
+            f"Expected command {expected_cmd}, got {call_args[0][0]}"
+        )
 
     @patch("launchline.runner.subprocess.run")
     def test_returns_subprocess_exit_code(self, mock_run: MagicMock) -> None:
@@ -47,30 +52,37 @@ class TestEntryRunner:
         entry = EntryConfig(name="Test", command="my-tool")
         runner = self._make_runner()
 
-        assert runner.launch(entry) == 42
+        result = runner.launch(entry)
+        assert result == 42, f"Expected exit code 42, got {result}"
 
     @patch("launchline.runner.subprocess.run")
-    def test_sets_env_on_subprocess(self, mock_run: MagicMock) -> None:
+    def test_launch_passes_env_dict_to_subprocess(self, mock_run: MagicMock) -> None:
         mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
         entry = EntryConfig(name="Test", command="my-tool", env={"MY_VAR": "my_value"})
         runner = self._make_runner()
         runner.launch(entry)
 
         call_kwargs = mock_run.call_args[1]
-        assert call_kwargs["env"]["MY_VAR"] == "my_value"
+        actual = call_kwargs["env"].get("MY_VAR")
+        assert actual == "my_value", f"Expected env MY_VAR='my_value', got '{actual}'"
 
     @patch("launchline.runner.subprocess.run")
-    def test_sets_cwd_on_subprocess(self, mock_run: MagicMock, tmp_path: Path) -> None:
+    def test_launch_passes_working_directory_to_subprocess(
+        self, mock_run: MagicMock, tmp_path: Path
+    ) -> None:
         mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
         entry = EntryConfig(name="Test", command="my-tool", working_directory=tmp_path)
         runner = self._make_runner()
         runner.launch(entry)
 
         call_kwargs = mock_run.call_args[1]
-        assert call_kwargs["cwd"] == str(tmp_path)
+        expected_cwd = str(tmp_path)
+        assert call_kwargs["cwd"] == expected_cwd, (
+            f"Expected cwd '{expected_cwd}', got '{call_kwargs['cwd']}'"
+        )
 
     @patch("launchline.runner.subprocess.run")
-    def test_no_cwd_when_not_configured(self, mock_run: MagicMock) -> None:
+    def test_launch_omits_cwd_when_not_configured(self, mock_run: MagicMock) -> None:
         mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
         entry = EntryConfig(name="Test", command="my-tool")
         runner = self._make_runner()
@@ -101,7 +113,7 @@ class TestEntryRunner:
 
     @patch("launchline.runner.EntryRunner._clear_screen")
     @patch("launchline.runner.subprocess.run")
-    def test_clears_screen_when_configured(
+    def test_launch_calls_clear_screen_when_enabled(
         self, mock_run: MagicMock, mock_clear: MagicMock
     ) -> None:
         mock_run.return_value = subprocess.CompletedProcess(args=[], returncode=0)
@@ -109,6 +121,7 @@ class TestEntryRunner:
         runner = self._make_runner(clear_on_launch=True)
         runner.launch(entry)
 
+        # Verify _clear_screen was called exactly once when clear_on_launch is True
         mock_clear.assert_called_once()
 
     @patch("launchline.runner.EntryRunner._clear_screen")
@@ -121,6 +134,7 @@ class TestEntryRunner:
         runner = self._make_runner(clear_on_launch=False)
         runner.launch(entry)
 
+        # Verify _clear_screen was never called when clear_on_launch is False
         mock_clear.assert_not_called()
 
 
