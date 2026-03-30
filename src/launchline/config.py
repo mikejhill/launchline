@@ -32,6 +32,10 @@ class EntryConfig:
             ``None`` to inherit the launcher's CWD.
         env: Extra environment variables merged into the subprocess
             environment.
+        icon: Optional path to an icon file for this entry.  Used by
+            terminal integrations that support per-tab icons (e.g. a
+            Windows Terminal profile icon override).  When ``None``,
+            the launcher's own icon is kept.
     """
 
     name: str
@@ -40,6 +44,7 @@ class EntryConfig:
     description: str = ""
     working_directory: Path | None = None
     env: dict[str, str] = field(default_factory=dict)
+    icon: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -87,7 +92,7 @@ class ConfigLoader:
 
     STARTER_CONFIG: str = """\
 # LaunchLine configuration
-# See https://github.com/mikejhill/LaunchLine#configuration-reference
+# See https://github.com/mikejhill/launchline#configuration-reference
 
 [settings]
 # on_exit = "restart"   # "restart" (default) or "exit"
@@ -216,6 +221,18 @@ description = "PowerShell 7"
                     f"Entry {i}: 'env' must be a table of strings."
                 )
 
+            icon_raw = entry_raw.get("icon")
+            icon: Path | None = None
+            if icon_raw:
+                icon = Path(str(icon_raw)).expanduser()
+                if not icon.exists():
+                    logger.warning(
+                        "Entry '%s': icon does not exist: %s",
+                        name,
+                        icon,
+                    )
+                    icon = None
+
             entries.append(
                 EntryConfig(
                     name=str(name),
@@ -224,6 +241,7 @@ description = "PowerShell 7"
                     description=str(entry_raw.get("description", "")),
                     working_directory=wd,
                     env={str(k): str(v) for k, v in raw_env.items()},
+                    icon=icon,
                 )
             )
 

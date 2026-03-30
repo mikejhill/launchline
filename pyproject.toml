@@ -23,10 +23,10 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/mikejhill/LaunchLine"
-Repository = "https://github.com/mikejhill/LaunchLine"
-Issues = "https://github.com/mikejhill/LaunchLine/issues"
-Changelog = "https://github.com/mikejhill/LaunchLine/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/mikejhill/launchline"
+Repository = "https://github.com/mikejhill/launchline"
+Issues = "https://github.com/mikejhill/launchline/issues"
+Changelog = "https://github.com/mikejhill/launchline/blob/main/CHANGELOG.md"
 
 [dependency-groups]
 dev = [

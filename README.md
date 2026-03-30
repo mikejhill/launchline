@@ -1,10 +1,12 @@
 # LaunchLine
 
+<img src="assets/launchline.svg" alt="LaunchLine icon" width="64">
+
 > [!NOTE]
 > This project was created with the assistance of AI.
 
-[![CI](https://github.com/mikejhill/LaunchLine/actions/workflows/ci.yml/badge.svg)](https://github.com/mikejhill/LaunchLine/actions/workflows/ci.yml)
-[![Publish](https://github.com/mikejhill/LaunchLine/actions/workflows/publish.yml/badge.svg)](https://github.com/mikejhill/LaunchLine/actions/workflows/publish.yml)
+[![CI](https://github.com/mikejhill/launchline/actions/workflows/ci.yml/badge.svg)](https://github.com/mikejhill/launchline/actions/workflows/ci.yml)
+[![Publish](https://github.com/mikejhill/launchline/actions/workflows/publish.yml/badge.svg)](https://github.com/mikejhill/launchline/actions/workflows/publish.yml)
 
 A lightweight terminal launcher for interactive CLI tools. Define your frequently
 used commands in a TOML config file, then pick them from a fuzzy-searchable menu
@@ -50,16 +52,16 @@ pip install launchline
 ### From source
 
 ```sh
-git clone https://github.com/mikejhill/LaunchLine.git
-cd LaunchLine
+git clone https://github.com/mikejhill/launchline.git
+cd launchline
 uv tool install .
 ```
 
 ### Run without installing
 
 ```sh
-git clone https://github.com/mikejhill/LaunchLine.git
-cd LaunchLine
+git clone https://github.com/mikejhill/launchline.git
+cd launchline
 uv sync --group dev
 uv run launchline
 ```
@@ -104,14 +106,15 @@ Config file format is [TOML](https://toml.io). The file has an optional
 
 Each `[[entries]]` table defines one launchable tool:
 
-| Key                 | Type            | Required | Default | Description                                   |
-| ------------------- | --------------- | -------- | ------- | --------------------------------------------- |
-| `name`              | string          | yes      | —       | Display name shown in the menu                |
-| `command`           | string          | yes      | —       | Executable to run                             |
-| `args`              | list of strings | no       | `[]`    | Arguments passed to the command               |
-| `description`       | string          | no       | `""`    | Short description shown next to the name      |
-| `working_directory` | string          | no       | —       | Working directory for the subprocess          |
-| `env`               | table           | no       | `{}`    | Extra environment variables (`KEY = "value"`) |
+| Key                 | Type            | Required | Default | Description                                                |
+| ------------------- | --------------- | -------- | ------- | ---------------------------------------------------------- |
+| `name`              | string          | yes      | —       | Display name shown in the menu                             |
+| `command`           | string          | yes      | —       | Executable to run                                          |
+| `args`              | list of strings | no       | `[]`    | Arguments passed to the command                            |
+| `description`       | string          | no       | `""`    | Short description shown next to the name                   |
+| `working_directory` | string          | no       | —       | Working directory for the subprocess                       |
+| `env`               | table           | no       | `{}`    | Extra environment variables (`KEY = "value"`)              |
+| `icon`              | string          | no       | —       | Path to an icon file used for terminal profile integration |
 
 ### Validation Rules
 
@@ -122,6 +125,8 @@ Each `[[entries]]` table defines one launchable tool:
 - `env` must be a TOML table (not a string or list).
 - If `working_directory` does not exist at load time, it is silently reset to
   `None` (a warning is logged).
+- If `icon` does not exist at load time, it is silently reset to `None` (a
+  warning is logged).
 
 ### Example Config
 
@@ -137,6 +142,7 @@ instant_numeric_launch = true
 [[entries]]
 name = "GitHub Copilot CLI"
 command = "copilot"
+icon = "~/.config/launchline/icons/copilot.png"
 
 [[entries]]
 name = "Claude Code"
@@ -166,7 +172,9 @@ env = { TERM = "xterm-256color" }
 
 ## Windows Terminal Integration
 
-Add LaunchLine as a Windows Terminal profile to use it as your default launcher:
+Add LaunchLine as a Windows Terminal profile to use it as your default launcher.
+The project includes an icon in `assets/launchline.ico` — copy it to a permanent
+location or reference it directly from your clone:
 
 ```jsonc
 // In your Windows Terminal settings.json → profiles.list
@@ -174,11 +182,15 @@ Add LaunchLine as a Windows Terminal profile to use it as your default launcher:
   "name": "LaunchLine",
   "commandline": "launchline",
   "startingDirectory": "%USERPROFILE%",
-  "icon": "ms-appx:///ProfileIcons/{9acb9455-ca41-5af7-950f-6bca1bc9722f}.png",
+  "icon": "C:/path/to/launchline/assets/launchline.ico"
 }
 ```
 
 Set it as the default profile to see the launcher every time you open a terminal.
+
+> **Note:** Current terminals do not support changing the tab icon dynamically
+> when a sub-CLI is launched.  The per-entry `icon` field is reserved for future
+> terminal integrations that add this capability.
 
 ## Development
 
