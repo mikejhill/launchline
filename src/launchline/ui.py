@@ -108,6 +108,8 @@ class LaunchLineUI:
         )
         self._exit_entry = _NumberedEntry(number=0, entry=_EXIT_ENTRY)
         self._show_exit = config.show_exit
+        self._ghost_text_enabled = config.ghost_text
+        self._instant_numeric_launch = config.instant_numeric_launch
         self._key_reader = _key_reader or (lambda: KeyReader.read_key(timeout=0.05))
 
         # Mutable state — reset on each run()
@@ -349,8 +351,9 @@ class LaunchLineUI:
         """Handle a printable character input.
 
         Supports immediate numeric selection (single-digit when ≤9
-        entries), '0' for exit, and appending to the fuzzy query.
-        Triggers auto-launch when a numeric query narrows to one match.
+        entries and ``instant_numeric_launch`` is enabled), '0' for
+        exit, and appending to the fuzzy query.  Triggers auto-launch
+        when a numeric query narrows to one match.
 
         Args:
             ch: A single printable character.
@@ -364,7 +367,12 @@ class LaunchLineUI:
             return _EXIT_ENTRY
 
         # Immediate single-digit launch when ≤9 total entries
-        if not self._query and ch.isdigit() and len(self._all_entries) <= 9:
+        if (
+            self._instant_numeric_launch
+            and not self._query
+            and ch.isdigit()
+            and len(self._all_entries) <= 9
+        ):
             num = int(ch)
             if 1 <= num <= len(self._all_entries):
                 return self._all_entries[num - 1].entry
@@ -375,7 +383,11 @@ class LaunchLineUI:
         self._update_filter()
 
         # Auto-launch if exactly one numeric match remains
-        if self._query.isdigit() and len(self._visible) == 1:
+        if (
+            self._instant_numeric_launch
+            and self._query.isdigit()
+            and len(self._visible) == 1
+        ):
             return self._visible[0].entry
 
         return None
@@ -387,7 +399,11 @@ class LaunchLineUI:
 
         Three modes:
         - Empty query: show all entries.
-        - Numeric query: prefix-match against entry display numbers.
+        - Numeric query with ``instant_numeric_launch`` enabled:
+          prefix-match against entry display numbers only.
+        - Numeric query with ``instant_numeric_launch`` disabled:
+          prefix-match against entry numbers *and* fuzzy-match entry
+          names, with number matches ranked first.
         - Text query: fuzzy-match against entry names, sorted by score.
 
         Also resets the highlight and viewport to the top.
@@ -395,15 +411,31 @@ class LaunchLineUI:
         if not self._query:
             self._visible = list(self._all_entries)
             self._exit_visible = self._show_exit
-        elif self._query.isdigit():
+        elif self._query.isdigit() and self._instant_numeric_launch:
             # Numeric prefix filter against entry numbers
             self._visible = [
                 ne for ne in self._all_entries if str(ne.number).startswith(self._query)
             ]
             self._exit_visible = self._show_exit and "0".startswith(self._query)
+        elif self._query.isdigit():
+            # Numeric + fuzzy: number prefix matches first, then name
+            # matches, deduplicated
+            number_matches = [
+                ne for ne in self._all_entries if str(ne.number).startswith(self._query)
+            ]
+            number_match_set = {id(ne) for ne in number_matches}
+            scored: list[tuple[int, _NumberedEntry]] = []
+            for ne in self._all_entries:
+                if id(ne) not in number_match_set:
+                    s = FuzzyMatcher.score(self._query, ne.entry.name)
+                    if s is not None:
+                        scored.append((s, ne))
+            scored.sort(key=lambda x: x[0], reverse=True)
+            self._visible = number_matches + [ne for _, ne in scored]
+            self._exit_visible = self._show_exit and "0".startswith(self._query)
         else:
             # Fuzzy search against entry names
-            scored: list[tuple[int, _NumberedEntry]] = []
+            scored = []
             for ne in self._all_entries:
                 s = FuzzyMatcher.score(self._query, ne.entry.name)
                 if s is not None:
@@ -536,7 +568,7 @@ class LaunchLineUI:
         row += 1
 
         # -- Prompt line --
-        hint = self._ghost_text()
+        hint = self._ghost_text() if self._ghost_text_enabled else ""
         hint_str = f" {self._GRAY}({hint}){self._RESET}" if hint else ""
         no_match = (
             f" {self._GRAY}(no matches){self._RESET}"

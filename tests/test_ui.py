@@ -637,6 +637,135 @@ class TestLaunchLineUIGhostText:
         ghost = ui._ghost_text()
         assert ghost == "Exit"
 
+    def test_ghost_text_disabled_by_default(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
+        """Ghost text is disabled by default (ghost_text=False)."""
+        ui = LaunchLineUI(sample_config)
+        assert ui._ghost_text_enabled is False, "ghost_text should default to False"
+
+    def test_ghost_text_enabled_via_config(self) -> None:
+        """Ghost text renders when ghost_text=True."""
+        config = LaunchLineConfig(
+            entries=(EntryConfig(name="Tool", command="tool"),),
+            ghost_text=True,
+        )
+        ui = LaunchLineUI(config)
+        assert ui._ghost_text_enabled is True, (
+            "ghost_text=True should enable the feature"
+        )
+
+
+class TestInstantNumericLaunch:
+    """Tests for the instant_numeric_launch feature flag."""
+
+    def test_enabled_by_default(self, sample_config: LaunchLineConfig) -> None:
+        """Instant numeric launch is enabled by default."""
+        ui = LaunchLineUI(sample_config)
+        assert ui._instant_numeric_launch is True
+
+    def test_digit_launches_immediately_when_enabled(
+        self, sample_config: LaunchLineConfig
+    ) -> None:
+        """With instant_numeric_launch=True and ≤9 entries, digit launches."""
+        ui = LaunchLineUI(sample_config)
+        ui._reset()
+        result = ui._on_key("2")
+        assert result is not None, "Digit 2 should immediately launch"
+        assert result.name == "Claude Code"
+
+    def test_digit_enters_query_when_disabled(self) -> None:
+        """With instant_numeric_launch=False, digit goes to search query."""
+        config = LaunchLineConfig(
+            entries=(
+                EntryConfig(name="Alpha", command="a"),
+                EntryConfig(name="Beta", command="b"),
+            ),
+            instant_numeric_launch=False,
+        )
+        ui = LaunchLineUI(config)
+        ui._reset()
+        result = ui._on_key("1")
+        assert result is None, (
+            "Digit should not launch when instant_numeric_launch=False"
+        )
+        assert ui._query == "1", "Digit should be appended to query"
+
+    def test_disabled_numeric_query_also_fuzzy_matches_names(self) -> None:
+        """When disabled, numeric query matches both numbers and names."""
+        config = LaunchLineConfig(
+            entries=(
+                EntryConfig(name="Item A", command="a"),
+                EntryConfig(name="Item B", command="b"),
+                EntryConfig(name="Item 2x", command="c"),
+            ),
+            instant_numeric_launch=False,
+        )
+        ui = LaunchLineUI(config)
+        ui._reset()
+        ui._query = "2"
+        ui._cursor = 1
+        ui._update_filter()
+        names = [ne.entry.name for ne in ui._visible]
+        # Entry #2 ("Item B") matches by number prefix
+        assert "Item B" in names, "Entry #2 should appear via number prefix match"
+        # Entry #3 ("Item 2x") matches by fuzzy name (contains "2")
+        assert "Item 2x" in names, "'Item 2x' should appear via fuzzy name match on '2'"
+
+    def test_disabled_number_matches_ranked_before_name_matches(self) -> None:
+        """Number prefix matches appear before fuzzy name matches."""
+        config = LaunchLineConfig(
+            entries=(
+                EntryConfig(name="Version 1 tool", command="a"),
+                EntryConfig(name="Other", command="b"),
+                EntryConfig(name="Another", command="c"),
+            ),
+            instant_numeric_launch=False,
+        )
+        ui = LaunchLineUI(config)
+        ui._reset()
+        ui._query = "1"
+        ui._cursor = 1
+        ui._update_filter()
+        # Entry #1 ("Version 1 tool") matches by number prefix
+        # "Version 1 tool" also has "1" in the name but number match is first
+        assert len(ui._visible) >= 1, "Should have at least the number match"
+        assert ui._visible[0].number == 1, (
+            f"First result should be entry #1 (number match), "
+            f"got entry #{ui._visible[0].number}"
+        )
+
+    def test_disabled_no_auto_launch_on_single_numeric_match(self) -> None:
+        """When disabled, single numeric match does NOT auto-launch."""
+        config = LaunchLineConfig(
+            entries=(
+                EntryConfig(name="Alpha", command="a"),
+                EntryConfig(name="Beta", command="b"),
+            ),
+            instant_numeric_launch=False,
+        )
+        ui = LaunchLineUI(config)
+        ui._reset()
+        # Type "2" — only entry #2 matches by number
+        result = ui._on_key("2")
+        assert result is None, (
+            "Should not auto-launch even with single numeric match "
+            "when instant_numeric_launch=False"
+        )
+
+    def test_zero_still_exits_when_disabled(self) -> None:
+        """Pressing 0 with no query still returns exit entry."""
+        config = LaunchLineConfig(
+            entries=(EntryConfig(name="Tool", command="t"),),
+            instant_numeric_launch=False,
+        )
+        ui = LaunchLineUI(config)
+        ui._reset()
+        result = ui._on_key("0")
+        assert result is _EXIT_ENTRY, (
+            "0 should still select exit even with instant_numeric_launch=False"
+        )
+
 
 class TestKittyProtocolDecoder:
     """Tests for the Kitty keyboard protocol CSI u decoder."""

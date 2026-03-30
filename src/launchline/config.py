@@ -53,6 +53,12 @@ class LaunchLineConfig:
         title: Text displayed in the header and terminal title bar.
         clear_on_launch: Whether to clear the screen before launching.
         show_exit: Whether to display the ``Exit`` option in the menu.
+        ghost_text: Whether to show an autocomplete hint on the prompt
+            line with the highlighted entry's name.
+        instant_numeric_launch: Whether pressing a digit immediately
+            launches the matching entry (when ≤9 entries and no active
+            query).  When ``False``, digits always enter the search
+            query and fuzzy-match against both numbers and names.
     """
 
     entries: tuple[EntryConfig, ...]
@@ -60,6 +66,8 @@ class LaunchLineConfig:
     title: str = "LaunchLine"
     clear_on_launch: bool = True
     show_exit: bool = True
+    ghost_text: bool = False
+    instant_numeric_launch: bool = True
 
 
 class ConfigLoader:
@@ -86,6 +94,8 @@ class ConfigLoader:
 # title = "LaunchLine"
 # clear_on_launch = true
 # show_exit = true
+# ghost_text = false
+# instant_numeric_launch = true
 
 [[entries]]
 name = "PowerShell"
@@ -166,6 +176,8 @@ description = "PowerShell 7"
         title: str = settings.get("title", "LaunchLine")
         clear_on_launch: bool = settings.get("clear_on_launch", True)
         show_exit: bool = settings.get("show_exit", True)
+        ghost_text: bool = settings.get("ghost_text", False)
+        instant_numeric_launch: bool = settings.get("instant_numeric_launch", True)
 
         raw_entries: list[dict[str, object]] = raw.get("entries", [])
         if not raw_entries:
@@ -221,6 +233,8 @@ description = "PowerShell 7"
             title=title,
             clear_on_launch=clear_on_launch,
             show_exit=show_exit,
+            ghost_text=ghost_text,
+            instant_numeric_launch=instant_numeric_launch,
         )
 
     @staticmethod
