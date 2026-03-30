@@ -40,6 +40,8 @@ jobs:
           sed -i "s|(docs/|(https://raw.githubusercontent.com/${{ github.repository }}/v${{ steps.semrel.outputs.version }}/docs/|g" README.md
 
       - run: uv build
+        env:
+          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ steps.semrel.outputs.version }}
 
       - uses: actions/upload-artifact@v4
         with:
