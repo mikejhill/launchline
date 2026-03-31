@@ -193,3 +193,9 @@ uv run mypy src
 ## License
 
 MIT
+
+## See Also
+
+- **[LaunchLine (Rust)](https://github.com/mikejhill/launchline-rust)** — a Rust
+  rewrite with near-instant startup (~14ms). Same config format, same features,
+  ships as a single native binary.
