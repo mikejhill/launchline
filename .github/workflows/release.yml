@@ -27,9 +27,20 @@ jobs:
         persist-credentials: false
         fetch-depth: 0
         ref: ${{ github.sha }}
+    - name: Download checksum-pinned semantic-release CLI
+      shell: bash
+      run: |
+        set -euo pipefail
+        dest="$RUNNER_TEMP/semantic-release-v2.31.0"
+        curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+          https://github.com/go-semantic-release/semantic-release/releases/download/v2.31.0/semantic-release_v2.31.0_linux_amd64 \
+          --output "$dest"
+        printf '%s  %s\n' 'b8f518b1aeb1d1742f4e6e91a179b707cea4309a64fe3854f465bf724f04f6d3' "$dest" | sha256sum --check --strict
+        chmod 0755 "$dest"
     - uses: go-semantic-release/action@2e9dc4247a6004f8377781bef4cb9dad273a741f
       id: semrel
       with:
+        bin: ${{ runner.temp }}/semantic-release-v2.31.0
         github-token: ${{ github.token }}
         allow-initial-development-versions: true
         force-bump-patch-version: ${{ inputs.force-patch || false }}
@@ -109,7 +120,7 @@ jobs:
         if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
           :
         else
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" --notes-file release/release-notes.md
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" --generate-notes --notes-file release/release-notes.md
         fi
         gh release upload "$TAG" release/dist/* --repo "$GITHUB_REPOSITORY" --clobber
       env:
