@@ -1,81 +1,148 @@
 name: Release
-
-on:
+'on':
+  push:
+    branches:
+    - main
   workflow_dispatch:
     inputs:
       force-patch:
-        description: "Force a patch version bump (use when only docs/test/chore commits exist)"
+        description: Force patch bump when no releasable commits exist
         type: boolean
         default: false
-
 permissions:
-  contents: write
-
+  contents: read
+concurrency:
+  group: release
+  cancel-in-progress: false
 jobs:
-  release:
+  target:
+    if: github.ref == 'refs/heads/main' && github.actor == 'mikejhill' && github.triggering_actor == 'mikejhill'
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.semrel.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Determine next version
-        id: semrel
-        uses: go-semantic-release/action@v1
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          allow-initial-development-versions: true
-          force-bump-patch-version: ${{ inputs.force-patch }}
-          dry: true
-
-      - name: Require new version
-        if: steps.semrel.outputs.version == ''
-        run: |
-          echo "::error::No new version to release. Ensure there are unreleased commits with conventional commit messages."
-          exit 1
-
-      - name: Create local tag
-        run: git tag "v${{ steps.semrel.outputs.version }}"
-
-      - uses: astral-sh/setup-uv@v6
-      - run: uv sync --group dev
-      - run: uv run pytest
-
-      - name: Rewrite README image paths for PyPI
-        run: |
-          sed -i "s|(docs/|(https://raw.githubusercontent.com/${{ github.repository }}/v${{ steps.semrel.outputs.version }}/docs/|g" README.md
-
-      - run: uv build
-        env:
-          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ steps.semrel.outputs.version }}
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
-      - name: Push tag
-        run: git push origin "v${{ steps.semrel.outputs.version }}"
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: "v${{ steps.semrel.outputs.version }}"
-          generate_release_notes: true
-          files: |
-            dist/*.tar.gz
-            dist/*.whl
-
+    - &id001
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+        ref: ${{ github.sha }}
+    - name: Download checksum-pinned semantic-release CLI
+      shell: bash
+      run: |
+        set -euo pipefail
+        dest="$RUNNER_TEMP/semantic-release-v2.31.0"
+        curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 \
+          https://github.com/go-semantic-release/semantic-release/releases/download/v2.31.0/semantic-release_v2.31.0_linux_amd64 \
+          --output "$dest"
+        printf '%s  %s\n' 'b8f518b1aeb1d1742f4e6e91a179b707cea4309a64fe3854f465bf724f04f6d3' "$dest" | sha256sum --check --strict
+        chmod 0755 "$dest"
+    - uses: go-semantic-release/action@2e9dc4247a6004f8377781bef4cb9dad273a741f
+      id: semrel
+      with:
+        bin: ${{ runner.temp }}/semantic-release-v2.31.0
+        github-token: ${{ github.token }}
+        allow-initial-development-versions: true
+        force-bump-patch-version: ${{ inputs.force-patch || false }}
+        dry: true
+  ci:
+    needs: target
+    if: needs.target.outputs.version != ''
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+  build:
+    needs:
+    - target
+    - ci
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-id: ${{ steps.dist.outputs.artifact-id }}
+    steps:
+    - *id001
+    - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e
+    - name: Build tested version without publishing credentials
+      run: |
+        [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+        uv sync --group dev
+        uv run pytest
+        python3 - <<'PY'
+        import os,pathlib
+        p=pathlib.Path('README.md')
+        p.write_text(p.read_text().replace('(docs/', '(https://raw.githubusercontent.com/'+os.environ['GITHUB_REPOSITORY']+'/v'+os.environ['VERSION']+'/docs/'))
+        PY
+        uv build
+        printf 'Built from reviewed main commit %s\n' "$GITHUB_SHA" > release-notes.md
+      env:
+        VERSION: ${{ needs.target.outputs.version }}
+        SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.target.outputs.version }}
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      id: dist
+      with:
+        name: trusted-release
+        path: |-
+          dist/*
+          release-notes.md
+        if-no-files-found: error
+        retention-days: 7
+  github-release:
+    if: github.ref == 'refs/heads/main' && github.actor == 'mikejhill' && github.triggering_actor == 'mikejhill'
+      && needs.build.result == 'success'
+    needs:
+    - target
+    - build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        artifact-ids: ${{ needs.build.outputs.artifact-id }}
+        path: release
+    - name: Publish same-run artifacts from trusted merge
+      run: |
+        # The approved immutable-v* ruleset must already prohibit tag updates/deletion.
+        ancestor=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...main" --jq .merge_base_commit.sha)
+        test "$ancestor" = "$GITHUB_SHA" || { echo 'Release commit is no longer on main.' >&2; exit 1; }
+        python3 - <<'PY'
+        import json,os,pathlib,re
+        assert re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+',os.environ['TAG'])
+        assert re.fullmatch(r'[0-9a-f]{40}',os.environ['GITHUB_SHA'])
+        pathlib.Path('release-ref.json').write_text(json.dumps({'ref':'refs/tags/'+os.environ['TAG'],'sha':os.environ['GITHUB_SHA']}))
+        PY
+        # Ref creation is atomic: if another process created it first, accept only the same commit.
+        if ! gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" --input release-ref.json >/dev/null 2>tag-create-error.txt; then
+          actual=$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)
+          test "$actual" = "$GITHUB_SHA" || { echo 'Tag creation failed or a conflicting tag exists.' >&2; exit 1; }
+        fi
+        actual=$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)
+        test "$actual" = "$GITHUB_SHA" || { echo 'Tag does not match the trusted merge.' >&2; exit 1; }
+        if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          :
+        else
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" --generate-notes --notes-file release/release-notes.md
+        fi
+        gh release upload "$TAG" release/dist/* --repo "$GITHUB_REPOSITORY" --clobber
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: v${{ needs.target.outputs.version }}
   pypi:
-    needs: release
+    if: github.ref == 'refs/heads/main' && github.actor == 'mikejhill' && github.triggering_actor == 'mikejhill'
+      && needs.github-release.result == 'success'
+    needs:
+    - target
+    - build
+    - github-release
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
-      - uses: pypa/gh-action-pypi-publish@release/v1
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        artifact-ids: ${{ needs.build.outputs.artifact-id }}
+        path: release
+    - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086
+      with:
+        packages-dir: release/dist/
+        skip-existing: true
