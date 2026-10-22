@@ -85,7 +85,7 @@ class TestKeyReaderPlatformDispatch:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="msvcrt only available on Windows")
+@pytest.mark.usefixtures("windows_console_api")
 class TestWindowsLegacyKeyReader:
     """Tests for the Windows msvcrt-based key reader's legacy paths."""
 
@@ -199,14 +199,16 @@ class TestWindowsLegacyKeyReader:
 
     @patch("msvcrt.kbhit")
     @patch("msvcrt.getwch")
+    @patch("msvcrt.ungetwch")
     def test_esc_then_unknown_char_returns_escape(
-        self, mock_getwch: MagicMock, mock_kbhit: MagicMock
+        self, mock_ungetwch: MagicMock, mock_getwch: MagicMock, mock_kbhit: MagicMock
     ) -> None:
-        """ESC followed by a non-bracket char discards the second char."""
+        """ESC preserves a queued non-bracket character for the next read."""
         mock_getwch.side_effect = ["\x1b", "x"]
         mock_kbhit.side_effect = [True]
         result = KeyReader._read_key_windows()
         assert result == "escape", f"Expected 'escape', got {result!r}"
+        mock_ungetwch.assert_called_once_with("x")
 
     @patch("msvcrt.kbhit")
     def test_timeout_returns_empty(self, mock_kbhit: MagicMock) -> None:
@@ -221,7 +223,7 @@ class TestWindowsLegacyKeyReader:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="msvcrt only available on Windows")
+@pytest.mark.usefixtures("windows_console_api")
 class TestWindowsCSIEdgeCases:
     """Edge cases for CSI sequence parsing on Windows."""
 
@@ -330,10 +332,10 @@ class TestKittyProtocolEdgeCases:
         result = KeyReader._decode_kitty_key("31")
         assert result == "", f"Expected '' for codepoint 31, got {result!r}"
 
-    def test_above_printable_range_returns_empty(self) -> None:
-        """Codepoint 128+ is outside the handled range."""
+    def test_unicode_printable_codepoint_is_preserved(self) -> None:
+        """Printable Unicode codepoints are preserved for search."""
         result = KeyReader._decode_kitty_key("200")
-        assert result == "", f"Expected '' for codepoint 200, got {result!r}"
+        assert result == chr(200), f"Expected Unicode codepoint 200, got {result!r}"
 
     def test_unmapped_ctrl_letter_returns_empty(self) -> None:
         """Ctrl+Z (not in the _ctrl_map) returns empty."""

@@ -19,7 +19,7 @@ from launchline.exceptions import ConfigurationError
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class EntryConfig:
     """Configuration for a single launchable entry.
 
@@ -42,7 +42,7 @@ class EntryConfig:
     env: dict[str, str] = field(default_factory=dict)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LaunchLineConfig:
     """Top-level launcher configuration.
 
@@ -57,7 +57,7 @@ class LaunchLineConfig:
         ghost_text: Whether to show an autocomplete hint on the prompt
             line with the highlighted entry's name.
         numeric_trigger: Whether pressing a digit immediately launches
-            the matching entry (when ≤9 entries and no active query).
+            the matching entry (when <=9 entries and no active query).
             When ``False``, digits always enter the search query and
             fuzzy-match against both numbers and names.
     """
@@ -109,7 +109,7 @@ description = "PowerShell 7"
     def resolve_path(cli_path: Path | None = None) -> Path:
         """Determine the config file path using the resolution order.
 
-        Priority: CLI flag → environment variable → default path.
+        Priority: CLI flag -> environment variable -> default path.
         If no config file exists at any location, a starter config is
         created automatically at :attr:`DEFAULT_PATH`.
 
@@ -129,7 +129,7 @@ description = "PowerShell 7"
             return expanded
 
         env_path = os.environ.get(ConfigLoader.ENV_VAR_NAME)
-        if env_path:
+        if env_path is not None and env_path != "":
             expanded = Path(env_path).expanduser()
             if expanded.exists():
                 return expanded
@@ -160,83 +160,110 @@ description = "PowerShell 7"
                 unknown setting values, or malformed entries.
         """
         try:
-            with config_path.open("rb") as f:
-                raw = tomllib.load(f)
+            with config_path.open("rb") as stream:
+                raw = ConfigLoader._table(tomllib.load(stream), "config")
         except tomllib.TOMLDecodeError as exc:
             raise ConfigurationError(f"Invalid TOML in {config_path}: {exc}") from exc
 
-        settings = raw.get("settings", {})
-
-        title: str = settings.get("title", "LaunchLine")
-
-        on_exit = settings.get("on_exit", "restart")
+        settings = ConfigLoader._table(raw.get("settings", {}), "settings")
+        title = ConfigLoader._value(settings, "title", "LaunchLine", str)
+        on_exit = ConfigLoader._value(settings, "on_exit", "restart", str)
         if on_exit not in ConfigLoader.VALID_ON_EXIT:
             raise ConfigurationError(
-                f"Invalid on_exit value: '{on_exit}'. "
-                f"Must be one of: {', '.join(ConfigLoader.VALID_ON_EXIT)}"
+                f"Invalid on_exit value: '{on_exit}'. Must be one of: restart, exit"
             )
-
-        show_exit: bool = settings.get("show_exit", True)
-        clear_on_launch: bool = settings.get("clear_on_launch", True)
-        ghost_text: bool = settings.get("ghost_text", True)
-        numeric_trigger: bool = settings.get("numeric_trigger", True)
-
-        raw_entries: list[dict[str, object]] = raw.get("entries", [])
-        if not raw_entries:
-            raise ConfigurationError("No entries configured.")
-
-        entries: list[EntryConfig] = []
-        for i, entry_raw in enumerate(raw_entries, 1):
-            name = entry_raw.get("name", "")
-            command = entry_raw.get("command", "")
-            if not name or not command:
-                raise ConfigurationError(
-                    f"Entry {i}: 'name' and 'command' are required."
-                )
-
-            raw_args = entry_raw.get("args", [])
-            if not isinstance(raw_args, list):
-                raise ConfigurationError(
-                    f"Entry {i}: 'args' must be a list of strings."
-                )
-
-            wd_raw = entry_raw.get("working_directory")
-            wd: Path | None = None
-            if wd_raw:
-                wd = Path(str(wd_raw)).expanduser()
-                if not wd.exists():
-                    logger.warning(
-                        "Entry '%s': working_directory does not exist: %s",
-                        name,
-                        wd,
-                    )
-                    wd = None
-
-            raw_env = entry_raw.get("env", {})
-            if not isinstance(raw_env, dict):
-                raise ConfigurationError(
-                    f"Entry {i}: 'env' must be a table of strings."
-                )
-
-            entries.append(
-                EntryConfig(
-                    name=str(name),
-                    command=str(command),
-                    args=tuple(str(a) for a in raw_args),
-                    description=str(entry_raw.get("description", "")),
-                    working_directory=wd,
-                    env={str(k): str(v) for k, v in raw_env.items()},
-                )
+        raw_entries = raw.get("entries", [])
+        if not isinstance(raw_entries, list) or not raw_entries:
+            raise ConfigurationError(
+                "No entries configured; entries must be a nonempty array of tables."
             )
-
+        entries = tuple(
+            ConfigLoader._entry(value, index)
+            for index, value in enumerate(raw_entries, 1)
+        )
         return LaunchLineConfig(
-            entries=tuple(entries),
+            entries=entries,
             title=title,
             on_exit=on_exit,
-            show_exit=show_exit,
-            clear_on_launch=clear_on_launch,
-            ghost_text=ghost_text,
-            numeric_trigger=numeric_trigger,
+            show_exit=ConfigLoader._value(settings, "show_exit", True, bool),
+            clear_on_launch=ConfigLoader._value(
+                settings, "clear_on_launch", True, bool
+            ),
+            ghost_text=ConfigLoader._value(settings, "ghost_text", True, bool),
+            numeric_trigger=ConfigLoader._value(
+                settings, "numeric_trigger", True, bool
+            ),
+        )
+
+    @staticmethod
+    def _table(value: object, label: str) -> dict[str, object]:
+        """Validate an untyped TOML table boundary."""
+        if not isinstance(value, dict):
+            raise ConfigurationError(f"{label} must be a table.")
+        result: dict[str, object] = {}
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise ConfigurationError(f"{label} keys must be strings.")
+            result[key] = item
+        return result
+
+    @staticmethod
+    def _value[T](
+        table: dict[str, object], key: str, default: T, expected: type[T]
+    ) -> T:
+        """Return a correctly typed scalar without coercion."""
+        value = table.get(key, default)
+        if not isinstance(value, expected):
+            raise ConfigurationError(f"'{key}' must be a {expected.__name__}.")
+        if isinstance(value, str) and any(
+            ord(char) < 32 or 127 <= ord(char) <= 159 for char in value
+        ):
+            raise ConfigurationError(f"'{key}' must not contain control characters.")
+        return value
+
+    @staticmethod
+    def _entry(value: object, index: int) -> EntryConfig:
+        """Convert one validated entry without losing invalid values."""
+        table = ConfigLoader._table(value, f"Entry {index}")
+        name = ConfigLoader._value(table, "name", "", str)
+        command = ConfigLoader._value(table, "command", "", str)
+        if not name or not command:
+            raise ConfigurationError(
+                f"Entry {index}: 'name' and 'command' are required."
+            )
+        args = table.get("args", [])
+        if not isinstance(args, list) or not all(isinstance(arg, str) for arg in args):
+            raise ConfigurationError(
+                f"Entry {index}: 'args' must be a list of strings."
+            )
+        typed_args = tuple(arg for arg in args if isinstance(arg, str))
+        env = ConfigLoader._table(table.get("env", {}), f"Entry {index}: 'env'")
+        if not all(isinstance(item, str) for item in env.values()):
+            raise ConfigurationError(
+                f"Entry {index}: 'env' must be a table of strings."
+            )
+        typed_env = {key: item for key, item in env.items() if isinstance(item, str)}
+        if any("\0" in arg for arg in typed_args) or any(
+            not key or "=" in key or "\0" in key or "\0" in item
+            for key, item in typed_env.items()
+        ):
+            raise ConfigurationError(f"Entry {index}: invalid NUL or environment key.")
+        wd_text = ConfigLoader._value(table, "working_directory", "", str)
+        wd = Path(wd_text).expanduser() if wd_text else None
+        if wd is not None and not wd.is_dir():
+            logger.warning(
+                "Entry '%s': invalid working_directory: %s",
+                name,
+                wd,
+            )
+            wd = None
+        return EntryConfig(
+            name=name,
+            command=command,
+            args=typed_args,
+            description=ConfigLoader._value(table, "description", "", str),
+            working_directory=wd,
+            env=typed_env,
         )
 
     @staticmethod
@@ -250,8 +277,10 @@ description = "PowerShell 7"
             Path to the newly created config file.
         """
         ConfigLoader.DEFAULT_PATH.parent.mkdir(parents=True, exist_ok=True)
-        ConfigLoader.DEFAULT_PATH.write_text(
-            ConfigLoader.STARTER_CONFIG, encoding="utf-8"
-        )
+        try:
+            with ConfigLoader.DEFAULT_PATH.open("x", encoding="utf-8") as stream:
+                stream.write(ConfigLoader.STARTER_CONFIG)
+        except FileExistsError:
+            return ConfigLoader.DEFAULT_PATH
         logger.info("Created starter config at %s", ConfigLoader.DEFAULT_PATH)
         return ConfigLoader.DEFAULT_PATH

@@ -1,0 +1,152 @@
+[
+  {
+    "workload": "exact",
+    "implementation": "baseline",
+    "ns_per_call": [
+      956.7,
+      967.0,
+      963.8,
+      952.3,
+      951.2,
+      958.7,
+      959.3
+    ],
+    "median_ns": 958.7,
+    "score": 31
+  },
+  {
+    "workload": "exact",
+    "implementation": "current",
+    "ns_per_call": [
+      166.7,
+      177.4,
+      170.9,
+      168.4,
+      167.1,
+      160.8,
+      161.8
+    ],
+    "median_ns": 167.1,
+    "score": 31
+  },
+  {
+    "workload": "prefix-long-tail",
+    "implementation": "baseline",
+    "ns_per_call": [
+      107858.4,
+      107777.2,
+      105129.3,
+      105651.5,
+      106687.4,
+      111437.1,
+      106568.6
+    ],
+    "median_ns": 106687.4,
+    "score": 10
+  },
+  {
+    "workload": "prefix-long-tail",
+    "implementation": "current",
+    "ns_per_call": [
+      957.0,
+      954.2,
+      953.9,
+      951.5,
+      953.8,
+      946.6,
+      1018.9
+    ],
+    "median_ns": 953.9,
+    "score": 10
+  },
+  {
+    "workload": "sparse",
+    "implementation": "baseline",
+    "ns_per_call": [
+      4678.3,
+      5623.3,
+      4737.6,
+      4990.8,
+      4919.0,
+      4669.1,
+      4615.6
+    ],
+    "median_ns": 4737.6,
+    "score": 5
+  },
+  {
+    "workload": "sparse",
+    "implementation": "current",
+    "ns_per_call": [
+      363.4,
+      362.0,
+      360.0,
+      359.5,
+      363.8,
+      362.3,
+      1208.1
+    ],
+    "median_ns": 362.3,
+    "score": 5
+  },
+  {
+    "workload": "miss-long",
+    "implementation": "baseline",
+    "ns_per_call": [
+      160468.9,
+      161118.0,
+      165938.3,
+      165138.5,
+      162102.7,
+      162744.6,
+      162117.8
+    ],
+    "median_ns": 162117.8,
+    "score": null
+  },
+  {
+    "workload": "miss-long",
+    "implementation": "current",
+    "ns_per_call": [
+      1940.7,
+      1131.3,
+      1082.9,
+      1096.4,
+      1170.2,
+      1081.9,
+      1082.1
+    ],
+    "median_ns": 1096.4,
+    "score": null
+  },
+  {
+    "workload": "unicode",
+    "implementation": "baseline",
+    "ns_per_call": [
+      530.7,
+      525.9,
+      529.2,
+      522.0,
+      522.5,
+      528.3,
+      526.2
+    ],
+    "median_ns": 526.2,
+    "score": 5
+  },
+  {
+    "workload": "unicode",
+    "implementation": "current",
+    "ns_per_call": [
+      410.1,
+      411.2,
+      417.2,
+      410.4,
+      406.8,
+      406.1,
+      406.2
+    ],
+    "median_ns": 410.1,
+    "score": 5
+  }
+]

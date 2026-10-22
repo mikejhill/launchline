@@ -8,8 +8,20 @@ from __future__ import annotations
 
 import argparse
 import logging
+from dataclasses import dataclass
 from importlib.resources import files
 from pathlib import Path
+
+
+@dataclass(frozen=True, slots=True)
+class Arguments:
+    """Validated command-line options."""
+
+    config: Path | None
+    log_level: int
+    icon_path: bool
+    config_path: bool
+    check_config: bool
 
 
 class CommandLineInterface:
@@ -29,7 +41,7 @@ class CommandLineInterface:
         return Path(str(resource))
 
     @staticmethod
-    def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    def parse_args(argv: list[str] | None = None) -> Arguments:
         """Parse and validate command-line arguments.
 
         Args:
@@ -71,6 +83,16 @@ class CommandLineInterface:
             help="Print the path to the active config file and exit.",
         )
 
+        parser.add_argument(
+            "--check-config",
+            action="store_true",
+            help="Validate configuration without launching tools.",
+        )
         args = parser.parse_args(argv)
-        args.log_level = getattr(logging, args.log_level)
-        return args
+        return Arguments(
+            config=args.config,
+            log_level=getattr(logging, args.log_level),
+            icon_path=args.icon_path,
+            config_path=args.config_path,
+            check_config=args.check_config,
+        )

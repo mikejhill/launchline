@@ -37,23 +37,27 @@ class FuzzyMatcher:
         query_lower = query.lower()
         candidate_lower = candidate.lower()
 
-        q_idx = 0
+        # A complete prefix consists of one contiguous run.
+        if candidate_lower.startswith(query_lower):
+            boundary_count = (
+                0
+                if query_lower.isalnum()
+                else sum(char in " -_./\\" for char in query_lower[:-1])
+            )
+            return 3 * len(query_lower) + 1 + 3 * boundary_count
+
+        start = 0
+        previous_end = -1
         score = 0
-        prev_match_idx = -2
-
-        for c_idx, c_char in enumerate(candidate_lower):
-            if q_idx < len(query_lower) and c_char == query_lower[q_idx]:
-                score += 1
-                # Contiguous character bonus
-                if c_idx == prev_match_idx + 1:
-                    score += 2
-                # Word-boundary bonus
-                if c_idx == 0 or candidate_lower[c_idx - 1] in " -_./\\":
-                    score += 3
-                prev_match_idx = c_idx
-                q_idx += 1
-
-        if q_idx < len(query_lower):
-            return None
-
+        for char in query_lower:
+            index = candidate_lower.find(char, start)
+            if index < 0:
+                return None
+            score += 1
+            if index == previous_end:
+                score += 2
+            if index == 0 or candidate_lower[index - 1] in " -_./\\":
+                score += 3
+            start = index + 1
+            previous_end = start
         return score

@@ -1,0 +1,37 @@
+[
+  {
+    "args": [
+      "--help"
+    ],
+    "exit": 0
+  },
+  {
+    "args": [
+      "--icon-path"
+    ],
+    "exit": 0
+  },
+  {
+    "args": [
+      "--config-path",
+      "--config",
+      "C:\\Users\\Mike\\AppData\\Local\\Temp\\launchline-wheel-2f1u7xrd\\config.toml"
+    ],
+    "exit": 0
+  },
+  {
+    "args": [
+      "--config-path",
+      "--config",
+      "C:\\Users\\Mike\\AppData\\Local\\Temp\\launchline-wheel-2f1u7xrd\\missing.toml"
+    ],
+    "exit": 1
+  },
+  {
+    "args": [
+      "--log-level",
+      "INVALID"
+    ],
+    "exit": 2
+  }
+]

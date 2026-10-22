@@ -85,7 +85,10 @@ class EntryRunner:
         except OSError as exc:
             raise LaunchError(entry.command, str(exc)) from exc
         else:
-            return result.returncode
+            returncode = result.returncode
+            if sys.platform == "win32":
+                return 130 if returncode in {-1073741510, 3221225786} else returncode
+            return returncode if returncode >= 0 else 128 - returncode
 
     @staticmethod
     def _clear_screen() -> None:

@@ -197,5 +197,12 @@ MIT
 ## See Also
 
 - **[LaunchLine (Rust)](https://github.com/mikejhill/launchline-rust)** — a Rust
-  rewrite with near-instant startup (~14ms). Same config format, same features,
+  implementation with the shared configuration and keyboard contract,
   ships as a single native binary.
+
+## Compatibility and validation
+
+Use `launchline --check-config` to validate configuration without opening the menu.
+Set `NO_COLOR` for a selection marker without ANSI color. See the
+[compatibility matrix](docs/compatibility.md), [reproducible test and performance
+results](docs/validation/report.md), and [release readiness](docs/releasing.md).
