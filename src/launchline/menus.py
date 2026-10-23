@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from typing import Protocol
 
@@ -10,6 +11,7 @@ from launchline.config import EntryConfig, LaunchLineConfig, MenuConfig, Provide
 from launchline.providers import MenuProvider, ProviderError
 
 logger = logging.getLogger(__name__)
+MAX_CACHED_MENUS = 128
 
 
 class Provider(Protocol):
@@ -40,6 +42,7 @@ class MenuFrame:
     origin: EntryConfig | None = None
     entries: tuple[EntryConfig, ...] = ()
     loaded: bool = False
+    last_used: int = 0
     error: str | None = None
     view: ViewState = field(default_factory=ViewState)
     children: list[MenuFrame] = field(default_factory=list)
@@ -49,10 +52,15 @@ class MenuSession:
     """Own a bounded navigation stack and last-good provider snapshots per session."""
 
     def __init__(
-        self, config: LaunchLineConfig, provider: Provider | None = None
+        self,
+        config: LaunchLineConfig,
+        provider: Provider | None = None,
+        observer: Callable[[str], None] | None = None,
     ) -> None:
         """Store declarations without running providers until load is requested."""
+        self._clock = 0
         self._provider = provider or MenuProvider()
+        self._observer = observer
         self._stack = [
             MenuFrame(
                 MenuConfig(
@@ -96,8 +104,11 @@ class MenuSession:
     def refresh(self) -> bool:
         """Replace the snapshot atomically on success; retain it on provider failure."""
         frame = self.current
+        self._touch()
         frame.loaded = True
         try:
+            if frame.declaration.provider is not None and self._observer is not None:
+                self._observer(frame.declaration.title)
             entries = (
                 frame.declaration.entries
                 if frame.declaration.provider is None
@@ -143,18 +154,48 @@ class MenuSession:
             self.current.children.append(child)
         self._stack.append(child)
         self.ensure_loaded()
+        self._touch()
+        self._evict()
 
     def back(self) -> bool:
         """Return to parent; refresh only when that parent's policy requests it."""
         if self.depth == 1:
             return False
         self._stack.pop()
+        self._touch()
         if (
             self.current.declaration.refresh_on_return
             and self.current.declaration.provider is not None
         ):
             self.refresh()
         return True
+
+    def _touch(self) -> None:
+        """Record deterministic LRU order without a wall-clock dependency."""
+        self._clock += 1
+        self.current.last_used = self._clock
+
+    def _evict(self) -> None:
+        """Bound cached menu instances while retaining every active ancestor."""
+        while True:
+            frames = [(self._stack[0], None)]
+            for frame, _parent in frames:
+                frames.extend((child, frame) for child in frame.children)
+            if len(frames) <= MAX_CACHED_MENUS:
+                return
+            candidates = [
+                (frame, parent)
+                for frame, parent in frames
+                if parent is not None
+                and all(frame is not active for active in self._stack)
+            ]
+            if not candidates:
+                return
+            frame, parent = min(candidates, key=lambda item: item[0].last_used)
+            if parent is not None:
+                parent.children = [
+                    child for child in parent.children if child is not frame
+                ]
 
 
 class MenuApplication:
@@ -163,7 +204,15 @@ class MenuApplication:
     def __init__(self, config: LaunchLineConfig) -> None:
         """Own this interactive session without resolving providers in construction."""
         self._config = config
-        self._session = MenuSession(config)
+        self._session = MenuSession(config, observer=self._loading)
+
+    @staticmethod
+    def _loading(title: str) -> None:
+        """Show bounded-provider progress outside the alternate screen."""
+        import sys
+
+        sys.stderr.write(f"Loading menu: {title}\n")
+        sys.stderr.flush()
 
     def run(self) -> None:
         """Navigate, refresh and launch only explicitly selected leaf commands."""
@@ -187,7 +236,7 @@ class MenuApplication:
                 (back,) if self._session.depth > 1 else ()
             )
             status = (
-                " [provider failed; cached snapshot retained]"
+                " [provider failed]"
                 if frame.error is not None
                 else " [empty]"
                 if not frame.entries

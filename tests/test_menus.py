@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -237,3 +238,50 @@ class TestMenuView:
         output = capsys.readouterr().out
         assert "\x1b[?1049h" in output, "Every menu control must restore the terminal"
         assert "\x1b[?1049l" in output, "Every menu control must restore the terminal"
+
+
+class TestSharedMenuContract:
+    """Consume the exact static fixture corpus also used by Rust."""
+
+    def test_shared_static_declarations(self, tmp_path: Path) -> None:
+        """Both runtimes must accept and reject the same declaration fixtures."""
+        data = json.loads(
+            (Path(__file__).parent / "fixtures/menu-contract.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        path = tmp_path / "config.toml"
+        for case in data["static"]:
+            path.write_text(case["toml"], encoding="utf-8")
+            if case["valid"]:
+                assert ConfigLoader.load(path) is not None, case["name"]
+            else:
+                with pytest.raises(ConfigurationError):
+                    ConfigLoader.load(path)
+
+
+class TestMenuCacheBudget:
+    """Bound long-session snapshots while preserving active and recent menus."""
+
+    def test_lru_eviction_regenerates_old_nodes_and_keeps_recent_nodes(self) -> None:
+        """A cache over 128 menus must evict inactive old snapshots predictably."""
+        provider = ProviderConfig(EntryConfig("p", "provider"))
+        entries = tuple(
+            EntryConfig(
+                str(index), "", id=str(index), menu=MenuConfig(provider=provider)
+            )
+            for index in range(130)
+        )
+        boundary = RecordedProvider(*[() for _ in range(131)])
+        session = MenuSession(LaunchLineConfig(entries), boundary)
+        session.ensure_loaded()
+        for entry in entries:
+            session.open(entry)
+            session.back()
+        session.open(entries[-1])
+        session.back()
+        assert boundary.calls == 130, "Recent inactive snapshots must remain cached"
+        session.open(entries[0])
+        assert boundary.calls == 131, (
+            "Evicted snapshots must regenerate only on explicit reentry"
+        )

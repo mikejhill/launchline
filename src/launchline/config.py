@@ -184,7 +184,7 @@ description = "PowerShell 7"
         try:
             with config_path.open("rb") as stream:
                 raw = ConfigLoader._table(tomllib.load(stream), "config")
-        except tomllib.TOMLDecodeError as exc:
+        except (tomllib.TOMLDecodeError, UnicodeDecodeError) as exc:
             raise ConfigurationError(f"Invalid TOML in {config_path}: {exc}") from exc
 
         settings = ConfigLoader._table(raw.get("settings", {}), "settings")
@@ -328,7 +328,14 @@ description = "PowerShell 7"
             raw = ConfigLoader._table(table["provider"], "provider")
             if "menu" in raw:
                 raise ConfigurationError("A provider must be an executable command.")
-            executable = ConfigLoader._entry({**raw, "name": "menu provider"}, 1)
+            executable_fields = {
+                key: raw[key]
+                for key in ("command", "args", "env", "working_directory")
+                if key in raw
+            }
+            executable = ConfigLoader._entry(
+                {**executable_fields, "name": "menu provider"}, 1
+            )
             timeout = raw.get("timeout_seconds", 10)
             if type(timeout) is not int or not 1 <= timeout <= 300:
                 raise ConfigurationError(
@@ -342,9 +349,11 @@ description = "PowerShell 7"
             )
         return MenuConfig(
             entries,
-            ConfigLoader._value(table, "title", title, str),
+            title if root else ConfigLoader._value(table, "title", title, str),
             provider,
-            ConfigLoader._value(table, "refresh_on_return", False, bool),
+            False
+            if root
+            else ConfigLoader._value(table, "refresh_on_return", False, bool),
         )
 
     @staticmethod

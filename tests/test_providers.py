@@ -59,8 +59,16 @@ class TestMenuProvider:
                 'import sys; sys.stdout.write(\'{"entries":[{"name":"broken"}]}\')',
                 "required",
             ),
-            ("import sys; sys.stdout.write('x' * 1100000)", "exceeds"),
-            ("import time; time.sleep(30)", "timed out"),
+            (
+                "import sys,json;sys.stdout.write("
+                "json.dumps(dict(entries=[],padding='x'*1100000)))",
+                "exceeds",
+            ),
+            (
+                "import time,sys,json;time.sleep(3);"
+                "sys.stdout.write(json.dumps(dict(entries=[])))",
+                "timed out",
+            ),
         ],
     )
     def test_real_process_failures_are_bounded_and_rejected(
@@ -86,3 +94,29 @@ class TestMenuProvider:
                 MenuProvider().resolve(
                     ProviderConfig(EntryConfig("p", command)), depth=0
                 )
+
+
+class TestSharedProviderContract:
+    """Use actual processes to emit every shared JSON boundary fixture."""
+
+    def test_shared_json_results(self) -> None:
+        """Unicode, numbers, nulls and nesting must agree with the native parser."""
+        data = json.loads(
+            (Path(__file__).parent / "fixtures/menu-contract.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        for case in data["providers"]:
+            code = (
+                "import sys; sys.stdout.buffer.write(bytes.fromhex("
+                + repr(case["json"].encode("utf-8").hex())
+                + "))"
+            )
+            declaration = TestMenuProvider._config(code)
+            if case["valid"]:
+                assert MenuProvider().resolve(declaration, depth=0) is not None, case[
+                    "name"
+                ]
+            else:
+                with pytest.raises(ProviderError):
+                    MenuProvider().resolve(declaration, depth=0)

@@ -22,6 +22,9 @@ class KeyReader:
     logical namespace rather than requiring instantiation.
     """
 
+    _pending_windows: ClassVar[str | None] = None
+    """One Windows scalar preserved independently of console readiness polling."""
+
     _pending_unix: ClassVar[str | None] = None
     """One character read ahead while distinguishing Escape from an Alt sequence."""
 
@@ -58,14 +61,17 @@ class KeyReader:
             raise OSError("Windows keyboard input is unavailable on this platform")
         import msvcrt
 
-        if timeout is not None:
-            deadline = time.monotonic() + timeout
-            while not msvcrt.kbhit():
-                if time.monotonic() >= deadline:
-                    return ""
-                time.sleep(0.01)
-
-        ch: str = msvcrt.getwch()
+        if KeyReader._pending_windows is not None:
+            ch = KeyReader._pending_windows
+            KeyReader._pending_windows = None
+        else:
+            if timeout is not None:
+                deadline = time.monotonic() + timeout
+                while not msvcrt.kbhit():
+                    if time.monotonic() >= deadline:
+                        return ""
+                    time.sleep(0.01)
+            ch = msvcrt.getwch()
         if ch in ("\x00", "\xe0"):
             ch2: str = msvcrt.getwch()
             if ch2 == "H":
@@ -85,7 +91,7 @@ class KeyReader:
                 if ch2 == "[":
                     return KeyReader._read_csi_sequence_windows()
                 # Preserve a quickly typed key after a bare Escape.
-                msvcrt.ungetwch(ch2)
+                KeyReader._pending_windows = ch2
             return "escape"
         if ch == "\x08":
             return "backspace"

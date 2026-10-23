@@ -5,6 +5,7 @@ from __future__ import annotations
 import ctypes
 import json
 import logging
+import math
 import os
 import signal
 import subprocess
@@ -164,19 +165,66 @@ class MenuProvider:
         """Require successful bounded UTF-8 JSON containing an entries array."""
         try:
             payload = self._execute(provider)
-            raw: object = json.loads(payload.decode("utf-8"))
+            raw: object = json.loads(
+                payload.decode("utf-8"),
+                parse_constant=self._reject_constant,
+                parse_float=self._finite_float,
+                parse_int=self._integer,
+            )
+            self._validate_json(raw)
             table = ConfigLoader._table(raw, "provider output")
             if "entries" not in table:
                 raise ConfigurationError("Provider output requires an entries array.")
             return ConfigLoader.parse_entries(table["entries"], depth=depth)
         except (
             OSError,
-            UnicodeDecodeError,
-            json.JSONDecodeError,
+            ValueError,
             RecursionError,
             ConfigurationError,
         ) as error:
             raise ProviderError(f"Invalid provider result: {error}") from error
+
+    @staticmethod
+    def _reject_constant(token: str) -> float:
+        """Reject non-JSON NaN/Infinity tokens rather than accepting extensions."""
+        raise ConfigurationError(f"Non-finite JSON number: {token}")
+
+    @staticmethod
+    def _integer(token: str) -> int:
+        """Reject magnitudes outside the native JSON parser's finite range."""
+        MenuProvider._finite_float(token)
+        return int(token)
+
+    @staticmethod
+    def _finite_float(token: str) -> float:
+        """Reject exponent overflow consistently with the native JSON parser."""
+        value = float(token)
+        if not math.isfinite(value):
+            raise ConfigurationError("JSON numeric overflow.")
+        return value
+
+    @staticmethod
+    def _validate_json(value: object) -> None:
+        """Bound container nesting and reject unpaired Unicode surrogates."""
+        stack: list[tuple[object, int]] = [(value, 0)]
+        while stack:
+            item, depth = stack.pop()
+            if isinstance(item, (list, dict)):
+                if depth >= 64:
+                    raise ConfigurationError(
+                        "Provider JSON nesting exceeds 64 containers."
+                    )
+                if isinstance(item, dict):
+                    stack.extend((key, depth + 1) for key in item)
+                    stack.extend((child, depth + 1) for child in item.values())
+                else:
+                    stack.extend((child, depth + 1) for child in item)
+            elif isinstance(item, str) and any(
+                0xD800 <= ord(char) <= 0xDFFF for char in item
+            ):
+                raise ConfigurationError(
+                    "Provider strings must contain Unicode scalars."
+                )
 
     @staticmethod
     def _execute(provider: ProviderConfig) -> bytes:

@@ -199,16 +199,22 @@ class TestWindowsLegacyKeyReader:
 
     @patch("msvcrt.kbhit")
     @patch("msvcrt.getwch")
-    @patch("msvcrt.ungetwch")
     def test_esc_then_unknown_char_returns_escape(
-        self, mock_ungetwch: MagicMock, mock_getwch: MagicMock, mock_kbhit: MagicMock
+        self, mock_getwch: MagicMock, mock_kbhit: MagicMock
     ) -> None:
         """ESC preserves a queued non-bracket character for the next read."""
         mock_getwch.side_effect = ["\x1b", "x"]
         mock_kbhit.side_effect = [True]
         result = KeyReader._read_key_windows()
         assert result == "escape", f"Expected 'escape', got {result!r}"
-        mock_ungetwch.assert_called_once_with("x")
+        mock_kbhit.return_value = False
+        mock_kbhit.side_effect = None
+        assert KeyReader.read_key(timeout=0) == "x", (
+            "Queued input must bypass readiness polling"
+        )
+        assert mock_getwch.call_count == 2, (
+            "Queued input must not read another console character"
+        )
 
     @patch("msvcrt.kbhit")
     def test_timeout_returns_empty(self, mock_kbhit: MagicMock) -> None:
