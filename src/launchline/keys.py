@@ -12,6 +12,7 @@ from __future__ import annotations
 import contextlib
 import sys
 import time
+from collections.abc import Generator
 from typing import ClassVar
 
 
@@ -27,6 +28,24 @@ class KeyReader:
 
     _pending_unix: ClassVar[str | None] = None
     """One character read ahead while distinguishing Escape from an Alt sequence."""
+
+    @staticmethod
+    @contextlib.contextmanager
+    def session() -> Generator[None]:
+        """Own raw Unix input across rendering and restore it before child tools."""
+        if sys.platform == "win32" or not sys.stdin.isatty():
+            yield
+            return
+        import termios
+        import tty
+
+        fd = sys.stdin.fileno()
+        previous = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd, termios.TCSANOW)
+            yield
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, previous)
 
     @staticmethod
     def read_key(timeout: float | None = None) -> str:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import subprocess
@@ -19,7 +20,16 @@ class PackageSmoke:
     def main() -> None:
         """Check metadata, packaged icon, CLI errors, and config resolution."""
         root = Path(__file__).resolve().parents[1]
-        wheel = next((root / "dist").glob("*.whl"))
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--wheel", type=Path)
+        selected = parser.parse_args().wheel
+        wheels = list((root / "dist").glob("*.whl"))
+        if selected is None and len(wheels) != 1:
+            parser.error(
+                "Build into a clean dist directory or select the exact --wheel"
+            )
+        wheel = selected.resolve() if selected is not None else wheels[0]
+
         with zipfile.ZipFile(wheel) as archive:
             assert "launchline/assets/launchline.ico" in archive.namelist()
         records = []

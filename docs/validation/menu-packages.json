@@ -1,12 +1,12 @@
 [
   {
-    "artifact": "dist\\launchline-0.2.2.dev4-py3-none-any.whl",
-    "sha256": "62f9f069cfe25760ee35fc9e30d426453a45f378df6aa63638609a408034fa50",
-    "scope": "local feature snapshot, not published release"
+    "artifact": "dist\\launchline-0.2.2.dev5-py3-none-any.whl",
+    "sha256": "a3385106d5a7c2d99e655b63783e607ddde7a1b5528a32fe87cfca2c626c206e",
+    "scope": "local corrected feature snapshot, not published release"
   },
   {
-    "artifact": "dist\\launchline-0.2.2.dev4.tar.gz",
-    "sha256": "d8f0c269130e07471655aae7bc2773fcd9345ba2ec9ccc68c3acd7e7c2ed54ce",
-    "scope": "local feature snapshot, not published release"
+    "artifact": "dist\\launchline-0.2.2.dev5.tar.gz",
+    "sha256": "402fe6fe03b125b10106c046aba3c2e97cf432f75924717f8dfcbae6a86e0a4e",
+    "scope": "local corrected feature snapshot, not published release"
   }
 ]

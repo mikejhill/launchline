@@ -109,6 +109,12 @@ class TestApplication:
                 handler.return_value = 1
             signal = stack.enter_context(patch("signal.signal"))
             stack.enter_context(
+                patch(
+                    "launchline.keys.KeyReader.session",
+                    return_value=contextlib.nullcontext(),
+                )
+            )
+            stack.enter_context(
                 patch("launchline.keys.KeyReader.read_key", return_value="escape")
             )
             Application.main()

@@ -168,6 +168,11 @@ class LaunchLineUI:
         Returns:
             The selected ``EntryConfig``, or ``None`` if the user exits.
         """
+        with KeyReader.session():
+            return self._run_interactive()
+
+    def _run_interactive(self) -> EntryConfig | None:
+        """Render and read keys while the caller owns terminal input mode."""
         self._reset()
         if self._menu_state is not None:
             self.restore_state(self._menu_state)
