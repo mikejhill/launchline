@@ -179,7 +179,13 @@ class TestRawSessionOwnership:
                     KeyReader.session(),
                 ):
                     raise RuntimeError("render boundary")
-                assert termios.tcgetattr(stream.fileno()) == previous, (
+                restored = termios.tcgetattr(stream.fileno())
+                if sys.platform == "darwin":
+                    # XNU tty.c sets PENDIN when canonical mode is restored.
+                    # Compare all configured flags, excluding this kernel queue state.
+                    restored[3] &= ~termios.PENDIN
+                    previous[3] &= ~termios.PENDIN
+                assert restored == previous, (
                     "Children must inherit restored terminal settings"
                 )
         finally:

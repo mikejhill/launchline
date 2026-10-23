@@ -90,3 +90,14 @@ All 58 reported Python dependency findings apply to the old lock; Pillow 13.0.0
 and pytest 9.1.1 are outside the reported ranges. Rust's latent pytest 8.4.2 lock
 fallback was also removed without raising its packaged Python >=3.9 requirement.
 See dependency-triage.md and per-advisory dependency-alerts.json for exact exposure.
+
+
+The next macOS run verified the retry/raw-mode correction but exposed the new
+restoration test comparing Darwin's kernel-owned PENDIN state as configuration.
+The observed sole difference was 0x20000000. XNU tty.c explicitly sets PENDIN when
+canonical mode is restored and preserves it while applying requested flags:
+https://raw.githubusercontent.com/apple-oss-distributions/xnu/main/bsd/kern/tty.c
+(ICANON transition and t_lflag assignment). The test now compares every requested
+terminal setting while excluding only Darwin PENDIN; raw-mode, echo, speed,
+control-character and remaining flag checks stay intact. Production restoration
+still applies the complete saved settings with tcsetattr.
