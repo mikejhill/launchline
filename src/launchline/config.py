@@ -240,7 +240,9 @@ description = "PowerShell 7"
         return value
 
     @staticmethod
-    def _entry(value: object, index: int, depth: int = 0) -> EntryConfig:
+    def _entry(
+        value: object, index: int, depth: int = 0, max_entries: int | None = None
+    ) -> EntryConfig:
         """Convert one validated entry without losing invalid values."""
         table = ConfigLoader._table(value, f"Entry {index}")
         name = ConfigLoader._value(table, "name", "", str)
@@ -253,7 +255,9 @@ description = "PowerShell 7"
                 raise ConfigurationError(
                     f"Entry {index}: menu and command fields are exclusive."
                 )
-            submenu = ConfigLoader._menu(table["menu"], name, depth=depth + 1)
+            submenu = ConfigLoader._menu(
+                table["menu"], name, depth=depth + 1, max_entries=max_entries
+            )
         if not name or (not command and submenu is None):
             raise ConfigurationError(
                 f"Entry {index}: 'name' and 'command' are required."
@@ -296,12 +300,18 @@ description = "PowerShell 7"
         )
 
     @staticmethod
-    def parse_entries(value: object, *, depth: int = 0) -> tuple[EntryConfig, ...]:
+    def parse_entries(
+        value: object, *, depth: int = 0, max_entries: int | None = None
+    ) -> tuple[EntryConfig, ...]:
         """Validate entries with shared depth, size and identity rules."""
-        if not isinstance(value, list) or len(value) > 1000:
-            raise ConfigurationError("entries must be an array of at most 1000 tables.")
+        if not isinstance(value, list):
+            raise ConfigurationError("entries must be an array of tables.")
+        if max_entries is not None and len(value) > max_entries:
+            raise ConfigurationError(
+                f"entries must contain at most {max_entries} tables."
+            )
         entries = tuple(
-            ConfigLoader._entry(item, index, depth)
+            ConfigLoader._entry(item, index, depth, max_entries)
             for index, item in enumerate(value, 1)
         )
         identities = [entry.id for entry in entries if entry.id]
@@ -311,7 +321,12 @@ description = "PowerShell 7"
 
     @staticmethod
     def _menu(
-        value: object, title: str, *, depth: int, root: bool = False
+        value: object,
+        title: str,
+        *,
+        depth: int,
+        root: bool = False,
+        max_entries: int | None = None,
     ) -> MenuConfig:
         """Parse a menu declaration without executing any configured provider."""
         if depth >= 16:
@@ -342,7 +357,9 @@ description = "PowerShell 7"
                     "timeout_seconds must be an integer from 1 to 300."
                 )
             provider = ProviderConfig(executable, timeout)
-        entries = ConfigLoader.parse_entries(table.get("entries", []), depth=depth)
+        entries = ConfigLoader.parse_entries(
+            table.get("entries", []), depth=depth, max_entries=max_entries
+        )
         if root and not entries and provider is None:
             raise ConfigurationError(
                 "No entries configured; entries must be a nonempty array of tables."

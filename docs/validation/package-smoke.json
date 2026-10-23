@@ -15,7 +15,7 @@
     "args": [
       "--config-path",
       "--config",
-      "C:\\Users\\Mike\\AppData\\Local\\Temp\\launchline-wheel-2f1u7xrd\\config.toml"
+      "C:\\Users\\Mike\\AppData\\Local\\Temp\\launchline-wheel-gtm8j58h\\config.toml"
     ],
     "exit": 0
   },
@@ -23,7 +23,7 @@
     "args": [
       "--config-path",
       "--config",
-      "C:\\Users\\Mike\\AppData\\Local\\Temp\\launchline-wheel-2f1u7xrd\\missing.toml"
+      "C:\\Users\\Mike\\AppData\\Local\\Temp\\launchline-wheel-gtm8j58h\\missing.toml"
     ],
     "exit": 1
   },
@@ -33,5 +33,8 @@
       "INVALID"
     ],
     "exit": 2
+  },
+  {
+    "installed_terminal_suite": "passed"
   }
 ]

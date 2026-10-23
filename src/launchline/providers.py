@@ -175,7 +175,9 @@ class MenuProvider:
             table = ConfigLoader._table(raw, "provider output")
             if "entries" not in table:
                 raise ConfigurationError("Provider output requires an entries array.")
-            return ConfigLoader.parse_entries(table["entries"], depth=depth)
+            return ConfigLoader.parse_entries(
+                table["entries"], depth=depth, max_entries=1000
+            )
         except (
             OSError,
             ValueError,

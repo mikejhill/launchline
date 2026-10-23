@@ -92,6 +92,29 @@ class TestMenuDeclarations:
         )
         assert config.refresh_on_return, "Root return policy must be loaded explicitly"
 
+    def test_large_static_menu_remains_compatible(self, tmp_path: Path) -> None:
+        """Existing TOML menus have no generated-snapshot entry limit."""
+        path = tmp_path / "large.toml"
+        path.write_text(
+            '[[entries]]\nname="tool"\ncommand="unused"\n' * 1001, encoding="utf-8"
+        )
+        assert len(ConfigLoader.load(path).entries) == 1001, (
+            "Static menus must preserve legacy capacity"
+        )
+
+    @pytest.mark.parametrize("nested", [False, True])
+    def test_generated_snapshot_bounds_include_nested_declarations(
+        self, nested: bool
+    ) -> None:
+        """Provider output cannot hide an oversized snapshot in a static child."""
+        entries: list[dict[str, object]] = [
+            {"name": "tool", "command": "unused"}
+        ] * 1001
+        if nested:
+            entries = [{"name": "child", "menu": {"entries": entries}}]
+        with pytest.raises(ConfigurationError, match="1000"):
+            ConfigLoader.parse_entries(entries, max_entries=1000)
+
     def test_depth_limit_rejects_deep_static_menus(self) -> None:
         """Reject nesting beyond the shared limit before constructing runtime frames."""
         node: dict[str, object] = {"name": "leaf", "command": "unused"}

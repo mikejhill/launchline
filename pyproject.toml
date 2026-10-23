@@ -135,3 +135,6 @@ cmd = "python scripts/package_smoke.py"
 
 [tool.poe.tasks.mutation]
 cmd = "python scripts/mutation_check.py python"
+
+[tool.poe.tasks.mutation-menus]
+cmd = "python scripts/mutate_menus.py python"
