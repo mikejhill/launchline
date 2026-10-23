@@ -12,10 +12,12 @@ import os
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
+from enum import Enum
 
 from launchline.config import EntryConfig, LaunchLineConfig
 from launchline.fuzzy import FuzzyMatcher
 from launchline.keys import KeyReader
+from launchline.menus import MenuSession, ViewState
 
 logger = logging.getLogger(__name__)
 
@@ -85,6 +87,23 @@ _EXIT_ENTRY = EntryConfig(name="Exit", command="", description="Close the launch
 # ---------------------------------------------------------------------------
 
 
+class MenuIntent(Enum):
+    """Explicit menu navigation outcomes without changing the legacy run API."""
+
+    ENTRY = "entry"
+    BACK = "back"
+    EXIT = "exit"
+    REFRESH = "refresh"
+
+
+@dataclass(frozen=True, slots=True)
+class MenuChoice:
+    """One deliberate user choice, distinct from a subprocess launch."""
+
+    intent: MenuIntent
+    entry: EntryConfig | None = None
+
+
 class LaunchLineUI:
     """Interactive TUI for selecting a CLI tool to launch.
 
@@ -110,6 +129,9 @@ class LaunchLineUI:
                 timeout.  Primarily used for testing.
         """
         self._config = config
+        self._navigation = False
+        self._intent = MenuIntent.EXIT
+        self._menu_state: ViewState | None = None
         if "NO_COLOR" in os.environ:
             for attribute in (
                 "_HEADER_ACCENT",
@@ -147,6 +169,8 @@ class LaunchLineUI:
             The selected ``EntryConfig``, or ``None`` if the user exits.
         """
         self._reset()
+        if self._menu_state is not None:
+            self.restore_state(self._menu_state)
         self._enter_alt_screen()
         try:
             dirty = True
@@ -172,6 +196,44 @@ class LaunchLineUI:
             return None
         finally:
             self._leave_alt_screen()
+
+    def choose(self, state: ViewState) -> tuple[MenuChoice, ViewState]:
+        """Select a menu entry or explicit back, exit or refresh intent."""
+        self._navigation = True
+        self._intent = MenuIntent.EXIT
+        self._menu_state = state
+        try:
+            selected = self.run()
+            intent = MenuIntent.ENTRY if selected is not None else self._intent
+            return MenuChoice(intent, selected), self.capture_state()
+        finally:
+            self._navigation = False
+            self._menu_state = None
+
+    def capture_state(self) -> ViewState:
+        """Capture the visible selection and search without storing row numbers."""
+        displayed = self._display_list()
+        selected = displayed[self._highlight_idx].entry if displayed else None
+        return ViewState(self._query, self._cursor, selected, self._viewport_offset)
+
+    def restore_state(self, state: ViewState) -> None:
+        """Restore search and valid selection, otherwise select the first match."""
+        self._query = state.query
+        self._cursor = min(state.cursor, len(state.query))
+        self._update_filter()
+        if state.selected is not None:
+            self._highlight_idx = next(
+                (
+                    index
+                    for index, numbered in enumerate(self._display_list())
+                    if MenuSession.same_entry(state.selected, numbered.entry)
+                ),
+                0,
+            )
+        self._viewport_offset = min(
+            state.viewport, max(0, len(self._display_list()) - 1)
+        )
+        self._ensure_highlight_visible()
 
     # -- state management ---------------------------------------------------
 
@@ -207,12 +269,17 @@ class LaunchLineUI:
         Raises:
             _UserExitError: When the user wants to quit.
         """
+        if key == "ctrl-r" and self._navigation:
+            self._intent = MenuIntent.REFRESH
+            raise _UserExitError
         if key == "escape":
             if self._query:
                 self._query = ""
                 self._cursor = 0
                 self._update_filter()
                 return None
+            if self._navigation:
+                self._intent = MenuIntent.BACK
             raise _UserExitError
 
         if key == "enter":
@@ -680,6 +747,8 @@ class LaunchLineUI:
             f"Ctrl+C=quit"
             f"{self._RESET}"
         )
+        if self._navigation:
+            footer_hint += "  Ctrl+R=refresh"
         buf += f"\033[{th};1H{footer_hint}\033[K"
 
         # Position cursor on prompt line

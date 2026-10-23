@@ -98,6 +98,7 @@ Config file format is [TOML](https://toml.io). The file has an optional
 | `clear_on_launch` | bool   | `true`         | Clear terminal before launching an entry                          |
 | `ghost_text`      | bool   | `true`         | Show the highlighted entry name as an autocomplete hint on prompt |
 | `numeric_trigger` | bool   | `true`         | Pressing a digit immediately launches the matching entry          |
+| `refresh_on_return` | boolean | `false` | Regenerate a dynamic root after returning from a submenu |
 
 ### `[[entries]]`
 
@@ -111,11 +112,13 @@ Each `[[entries]]` table defines one launchable tool:
 | `description`       | string          | no       | `""`    | Short description shown next to the name                       |
 | `working_directory` | string          | no       | —       | Working directory for the subprocess                           |
 | `env`               | table           | no       | `{}`    | Extra environment variables (`KEY = "value"`)                  |
+| `id` | string | no | `""` | Stable per-menu identity for refreshed selection |
+| `menu` | table | no | - | Submenu declaration, exclusive with command fields |
 
 ### Validation Rules
 
-- At least one `[[entries]]` table is required.
-- Every entry must have both `name` and `command`.
+- A root requires nonempty `[[entries]]` or a `[provider]` declaration.
+- Every entry needs `name` and either `command` or `menu`.
 - `on_exit` must be `"restart"` or `"exit"`.
 - `args` must be a list (not a bare string).
 - `env` must be a TOML table (not a string or list).
@@ -206,3 +209,17 @@ Use `launchline --check-config` to validate configuration without opening the me
 Set `NO_COLOR` for a selection marker without ANSI color. See the
 [compatibility matrix](docs/compatibility.md), [reproducible test and performance
 results](docs/validation/report.md), and [release readiness](docs/releasing.md).
+
+### `[provider]`
+
+The same table is accepted under `entries.menu.provider`. See the
+[menu lifecycle and provider contract](docs/menus.md) for nesting, caching,
+refresh/back behavior, limits, errors and examples.
+
+| Field | Type | Default | Description |
+| --- | --- | --- | --- |
+| `command` | string | required | Explicit trusted provider executable |
+| `args` | string array | `[]` | Literal argv |
+| `env` | string table | `{}` | Environment overlay |
+| `working_directory` | string | inherited | Provider working directory |
+| `timeout_seconds` | integer | `10` | Deadline from 1 to 300 seconds |

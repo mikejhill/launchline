@@ -103,6 +103,8 @@ class KeyReader:
             return "ctrl-f"
         if ch == "\x0b":
             return "ctrl-k"
+        if ch == "\x12":
+            return "ctrl-r"
         if ch == "\x15":
             return "ctrl-u"
         if ch == "\x17":
@@ -204,6 +206,8 @@ class KeyReader:
                 return "ctrl-f"
             if ch == "\x0b":
                 return "ctrl-k"
+            if ch == "\x12":
+                return "ctrl-r"
             if ch == "\x15":
                 return "ctrl-u"
             if ch == "\x17":
@@ -342,6 +346,7 @@ class KeyReader:
                 "f": "ctrl-f",
                 "h": "ctrl-h",
                 "k": "ctrl-k",
+                "r": "ctrl-r",
                 "u": "ctrl-u",
                 "w": "ctrl-w",
             }
