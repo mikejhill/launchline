@@ -30,12 +30,19 @@ _DEFAULT_SIZE = os.terminal_size((80, 24))
 """Fallback terminal dimensions when the real size cannot be detected."""
 
 
-def _get_terminal_size() -> os.terminal_size:
-    """Return the terminal size with a safe fallback."""
-    try:
-        return os.get_terminal_size()
-    except OSError:
-        return _DEFAULT_SIZE
+class TerminalDimensions:
+    """Read terminal dimensions with a stable fallback for detached output."""
+
+    @staticmethod
+    def get() -> os.terminal_size:
+        """Return terminal dimensions or the documented 80 by 24 fallback."""
+        try:
+            return os.get_terminal_size()
+        except OSError:
+            return _DEFAULT_SIZE
+
+
+_get_terminal_size = TerminalDimensions.get
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +110,17 @@ class LaunchLineUI:
                 timeout.  Primarily used for testing.
         """
         self._config = config
+        if "NO_COLOR" in os.environ:
+            for attribute in (
+                "_HEADER_ACCENT",
+                "_ACTIVE_ACCENT",
+                "_GRAY",
+                "_DIM",
+                "_BOLD",
+                "_WHITE",
+                "_RESET",
+            ):
+                setattr(self, attribute, "")
         self._all_entries: tuple[_NumberedEntry, ...] = tuple(
             _NumberedEntry(number=i + 1, entry=e) for i, e in enumerate(config.entries)
         )
@@ -150,7 +168,7 @@ class LaunchLineUI:
                     if entry is _EXIT_ENTRY:
                         return None
                     return entry
-        except (KeyboardInterrupt, _UserExitError):
+        except (EOFError, KeyboardInterrupt, _UserExitError):
             return None
         finally:
             self._leave_alt_screen()
@@ -370,6 +388,7 @@ class LaunchLineUI:
         if (
             self._numeric_trigger
             and not self._query
+            and ch.isascii()
             and ch.isdigit()
             and len(self._all_entries) <= 9
         ):
@@ -383,7 +402,11 @@ class LaunchLineUI:
         self._update_filter()
 
         # Auto-launch if exactly one numeric match remains
-        if self._numeric_trigger and self._query.isdigit() and len(self._visible) == 1:
+        if (
+            self._numeric_trigger
+            and (self._query.isascii() and self._query.isdigit())
+            and len(self._visible) == 1
+        ):
             return self._visible[0].entry
 
         return None
@@ -407,13 +430,15 @@ class LaunchLineUI:
         if not self._query:
             self._visible = list(self._all_entries)
             self._exit_visible = self._show_exit
-        elif self._query.isdigit() and self._numeric_trigger:
+        elif (
+            self._query.isascii() and self._query.isdigit()
+        ) and self._numeric_trigger:
             # Numeric prefix filter against entry numbers
             self._visible = [
                 ne for ne in self._all_entries if str(ne.number).startswith(self._query)
             ]
             self._exit_visible = self._show_exit and "0".startswith(self._query)
-        elif self._query.isdigit():
+        elif self._query.isascii() and self._query.isdigit():
             # Numeric + fuzzy: number prefix matches first, then name
             # matches, deduplicated
             number_matches = [
@@ -587,6 +612,8 @@ class LaunchLineUI:
 
         # -- Scrollbar computation --
         needs_scrollbar = total_items > max_vis and max_vis > 0
+        thumb_size = 0
+        thumb_top = 0
         if needs_scrollbar:
             thumb_size = max(1, round(max_vis * max_vis / total_items))
             thumb_top = round(self._viewport_offset * max_vis / total_items)

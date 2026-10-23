@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
@@ -60,3 +62,32 @@ command = "beta-cmd"
         encoding="utf-8",
     )
     return config_file
+
+
+class WindowsConsoleBoundary:
+    """OS boundary placeholders replaced by each existing key-reader test."""
+
+    @staticmethod
+    def getwch() -> str:
+        """Fail if a unit test unexpectedly attempts real console input."""
+        raise OSError("Unexpected unconfigured console read")
+
+    @staticmethod
+    def kbhit() -> bool:
+        """Report no pending input until a test supplies its OS boundary."""
+        return False
+
+    @staticmethod
+    def ungetwch(_character: str) -> None:
+        """Provide the pushback boundary for per-test spies."""
+
+
+@pytest.fixture
+def windows_console_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run the existing Windows decoder tests against mocked OS calls on any host."""
+    module = ModuleType("msvcrt")
+    module.getwch = WindowsConsoleBoundary.getwch
+    module.kbhit = WindowsConsoleBoundary.kbhit
+    module.ungetwch = WindowsConsoleBoundary.ungetwch
+    monkeypatch.setitem(sys.modules, "msvcrt", module)
+    monkeypatch.setattr("launchline.keys.sys", SimpleNamespace(platform="win32"))

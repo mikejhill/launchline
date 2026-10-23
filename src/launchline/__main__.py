@@ -53,7 +53,7 @@ class Application:
             try:
                 exit_code = runner.launch(selected)
             except LaunchError as exc:
-                print(f"\nError: {exc}", file=sys.stderr)
+                sys.stderr.write(f"\nError: {exc}\n")
                 if self._config.on_exit == "exit":
                     sys.exit(1)
                 input("Press Enter to return to the launcher...")
@@ -67,42 +67,63 @@ class Application:
                 sys.exit(exit_code)
             # on_exit == "restart": loop continues
 
+    @classmethod
+    def main(cls) -> None:
+        """Parse the CLI and report expected failures without tracebacks."""
+        import logging
 
-def main() -> None:
-    """Parse arguments, configure logging, and run the launcher."""
-    import logging
+        from launchline.cli import CommandLineInterface
 
-    from launchline.cli import CommandLineInterface
+        args = CommandLineInterface.parse_args()
+        logging.basicConfig(level=args.log_level, format="%(levelname)s: %(message)s")
+        if args.icon_path:
+            sys.stdout.write(f"{CommandLineInterface.icon_path()}\n")
+            return
+        try:
+            config_path = ConfigLoader.resolve_path(args.config)
+            if args.config_path:
+                sys.stdout.write(f"{config_path}\n")
+                return
+            config = ConfigLoader.load(config_path)
+        except (LaunchLineError, OSError) as exc:
+            logging.getLogger(__name__).error("%s", exc)
+            raise SystemExit(1) from exc
+        if args.check_config:
+            sys.stdout.write(f"Configuration valid: {len(config.entries)} entries\n")
+            return
+        if not sys.stdin.isatty() or not sys.stdout.isatty():
+            logging.getLogger(__name__).error(
+                "Interactive mode requires a terminal; "
+                "use --check-config to validate configuration."
+            )
+            raise SystemExit(1)
+        try:
+            cls._enable_interrupts()
+        except OSError as exc:
+            logging.getLogger(__name__).error("Cannot enable Ctrl+C: %s", exc)
+            raise SystemExit(1) from exc
+        cls(config).run()
 
-    args = CommandLineInterface.parse_args()
+    @staticmethod
+    def _enable_interrupts() -> None:
+        """Restore Ctrl+C for this process, including inherited Windows ignore flags."""
+        import signal
 
-    if args.icon_path:
-        print(CommandLineInterface.icon_path())
-        return
+        if sys.platform == "win32":
+            import ctypes
+            from ctypes import wintypes
 
-    if args.config_path:
-        config_path = ConfigLoader.resolve_path(args.config)
-        print(config_path)
-        return
+            kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+            handler = kernel.SetConsoleCtrlHandler
+            handler.argtypes = [ctypes.c_void_p, wintypes.BOOL]
+            handler.restype = wintypes.BOOL
+            # CREATE_NEW_PROCESS_GROUP parents can pass down the ignore attribute.
+            if not handler(None, False):
+                raise OSError(ctypes.get_last_error(), "SetConsoleCtrlHandler failed")
+        signal.signal(signal.SIGINT, signal.default_int_handler)
 
-    logging.basicConfig(
-        level=args.log_level,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-        datefmt="%Y-%m-%dT%H:%M:%S",
-    )
 
-    try:
-        config_existed = args.config is not None or ConfigLoader.DEFAULT_PATH.exists()
-        config_path = ConfigLoader.resolve_path(args.config)
-        if not config_existed:
-            print(f"Created starter config at {config_path}")
-            print("Edit it to add your tools, then run launchline again.\n")
-        config = ConfigLoader.load(config_path)
-    except LaunchLineError as exc:
-        print(f"Error: {exc}", file=sys.stderr)
-        sys.exit(1)
-
-    Application(config).run()
+main = Application.main
 
 
 if __name__ == "__main__":

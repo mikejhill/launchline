@@ -30,10 +30,14 @@ Changelog = "https://github.com/mikejhill/launchline/blob/main/CHANGELOG.md"
 
 [dependency-groups]
 dev = [
-    "mypy>=1.10",
+    "pexpect>=4.9 ; sys_platform != 'win32'",
+    "poethepoet>=0.49.0",
     "pytest>=8.0",
     "pytest-cov>=7.1.0",
+    "pywinpty>=3 ; sys_platform == 'win32'",
+    "pyyaml>=6.0.3",
     "ruff>=0.7",
+    "ty>=0.0.91",
 ]
 screenshots = [
     "pillow>=10",
@@ -41,7 +45,7 @@ screenshots = [
 ]
 
 [project.scripts]
-launchline = "launchline.__main__:main"
+launchline = "launchline.__main__:Application.main"
 
 [tool.ruff]
 target-version = "py312"
@@ -79,11 +83,12 @@ warn_unused_ignores = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "--cov=launchline --cov-report=term-missing --cov-fail-under=85"
+addopts = "--cov=launchline --cov-report=term-missing --cov-fail-under=90"
 
 [tool.coverage.run]
 source = ["launchline"]
-omit = ["src/launchline/__main__.py", "src/launchline/_version.py"]
+branch = true
+omit = ["src/launchline/_version.py"]
 
 [tool.hatch.version]
 source = "vcs"
@@ -93,12 +98,40 @@ local_scheme = "no-local-version"
 
 [tool.hatch.build.targets.wheel.hooks.vcs]
 version-file = "src/launchline/_version.py"
+template = '''
+"""Build-generated distribution version."""
+
+from __future__ import annotations
+
+__version__ = "{version}"
+'''
+
 
 [tool.coverage.report]
-fail_under = 85
+fail_under = 90
 show_missing = true
 exclude_lines = [
     "pragma: no cover",
     "if __name__ == .__main__.",
     "if TYPE_CHECKING:",
 ]
+
+[tool.ty.rules]
+all = "error"
+
+[tool.poe.tasks]
+format = "ruff format src tests scripts docs/validation/benchmark.py"
+format-check = "ruff format --check src tests scripts docs/validation/benchmark.py"
+lint = "ruff check src tests scripts"
+lint-fix = "ruff check src tests scripts --fix"
+typecheck = "ty check src"
+test = "pytest --junitxml=junit.xml"
+benchmark = "python docs/validation/benchmark.py docs/validation/current.json"
+fix = ["format", "lint-fix", "format"]
+check = ["format-check", "lint", "typecheck", "test"]
+
+[tool.poe.tasks.package-smoke]
+cmd = "python scripts/package_smoke.py"
+
+[tool.poe.tasks.mutation]
+cmd = "python scripts/mutation_check.py python"

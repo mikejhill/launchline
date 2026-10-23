@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -950,7 +949,7 @@ class TestKittyProtocolDecoder:
         assert result_down == "down", f"Expected 'down' for CSI B, got {result_down!r}"
 
 
-@pytest.mark.skipif(sys.platform != "win32", reason="msvcrt only available on Windows")
+@pytest.mark.usefixtures("windows_console_api")
 class TestWindowsCSISequenceParsing:
     """Tests for CSI sequence parsing on the Windows code path."""
 

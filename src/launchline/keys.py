@@ -12,6 +12,7 @@ from __future__ import annotations
 import contextlib
 import sys
 import time
+from typing import ClassVar
 
 
 class KeyReader:
@@ -20,6 +21,9 @@ class KeyReader:
     All public and private methods are static; the class serves as a
     logical namespace rather than requiring instantiation.
     """
+
+    _pending_unix: ClassVar[str | None] = None
+    """One character read ahead while distinguishing Escape from an Alt sequence."""
 
     @staticmethod
     def read_key(timeout: float | None = None) -> str:
@@ -50,18 +54,20 @@ class KeyReader:
             timeout: Optional timeout in seconds.  Returns ``""`` if no
                 key is pressed before the deadline.
         """
+        if sys.platform != "win32":
+            raise OSError("Windows keyboard input is unavailable on this platform")
         import msvcrt
 
         if timeout is not None:
             deadline = time.monotonic() + timeout
-            while not msvcrt.kbhit():  # type: ignore[attr-defined]
+            while not msvcrt.kbhit():
                 if time.monotonic() >= deadline:
                     return ""
                 time.sleep(0.01)
 
-        ch: str = msvcrt.getwch()  # type: ignore[attr-defined]
+        ch: str = msvcrt.getwch()
         if ch in ("\x00", "\xe0"):
-            ch2: str = msvcrt.getwch()  # type: ignore[attr-defined]
+            ch2: str = msvcrt.getwch()
             if ch2 == "H":
                 return "up"
             if ch2 == "P":
@@ -74,11 +80,12 @@ class KeyReader:
         if ch == "\x1b":
             # Kitty protocol sends CSI sequences starting with ESC [.
             # Peek to see if this is a CSI sequence rather than bare Escape.
-            if msvcrt.kbhit():  # type: ignore[attr-defined]
-                ch2 = msvcrt.getwch()  # type: ignore[attr-defined]
+            if msvcrt.kbhit():
+                ch2 = msvcrt.getwch()
                 if ch2 == "[":
                     return KeyReader._read_csi_sequence_windows()
-                # Unknown ESC sequence — discard the second char
+                # Preserve a quickly typed key after a bare Escape.
+                msvcrt.ungetwch(ch2)
             return "escape"
         if ch == "\x08":
             return "backspace"
@@ -110,16 +117,18 @@ class KeyReader:
 
         Uses ``msvcrt`` to read characters until a terminator is found.
         """
+        if sys.platform != "win32":
+            raise OSError("Windows keyboard input is unavailable on this platform")
         import msvcrt
 
         buf: list[str] = []
         deadline = time.monotonic() + 0.1
         while True:
-            while not msvcrt.kbhit():  # type: ignore[attr-defined]
+            while not msvcrt.kbhit():
                 if time.monotonic() >= deadline:
                     return ""  # incomplete sequence
                 time.sleep(0.001)
-            ch: str = msvcrt.getwch()  # type: ignore[attr-defined]
+            ch: str = msvcrt.getwch()
             if ch.isdigit() or ch in ";:":
                 buf.append(ch)
             elif ch.isalpha() or ch in "~u":
@@ -130,7 +139,7 @@ class KeyReader:
     @staticmethod
     def _read_key_unix(
         timeout: float | None = None,
-    ) -> str:  # pragma: no cover — not testable on Windows CI
+    ) -> str:
         """Read a single keypress on Unix/macOS using ``termios``.
 
         Switches the terminal to raw mode, reads one character, peeks
@@ -141,26 +150,32 @@ class KeyReader:
             timeout: Optional timeout in seconds.  Returns ``""`` if no
                 key is pressed before the deadline.
         """
+        if sys.platform == "win32":
+            raise OSError("Unix keyboard input is unavailable on this platform")
         import select
         import termios
         import tty
 
         fd = sys.stdin.fileno()
-        old = termios.tcgetattr(fd)  # type: ignore[attr-defined]
+        old = termios.tcgetattr(fd)
         try:
-            tty.setraw(fd)  # type: ignore[attr-defined]
-            if timeout is not None:
+            tty.setraw(fd, termios.TCSANOW)
+            if timeout is not None and KeyReader._pending_unix is None:
                 ready, _, _ = select.select([fd], [], [], timeout)
                 if not ready:
                     return ""
-            ch = sys.stdin.read(1)
+            if KeyReader._pending_unix is not None:
+                ch = KeyReader._pending_unix
+                KeyReader._pending_unix = None
+            else:
+                ch = KeyReader._read_character(fd)
             if ch == "\x1b":
                 # Peek for CSI start; works for both Kitty protocol
                 # (ESC key → CSI 27 u) and legacy terminals.
                 ready, _, _ = select.select([fd], [], [], 0.05)
                 if not ready:
                     return "escape"
-                ch2 = sys.stdin.read(1)
+                ch2 = KeyReader._read_character(fd)
                 if ch2 == "[":
                     return KeyReader._read_csi_sequence(fd)
                 if ch2 == "\x7f":
@@ -171,6 +186,7 @@ class KeyReader:
                     return "alt-f"
                 if ch2 == "b":
                     return "alt-b"
+                KeyReader._pending_unix = ch2
                 return "escape"
             if ch == "\r":
                 return "enter"
@@ -196,14 +212,36 @@ class KeyReader:
                 raise KeyboardInterrupt
             return ch
         finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old)  # type: ignore[attr-defined]
+            termios.tcsetattr(fd, termios.TCSADRAIN, old)
+
+    @staticmethod
+    def _read_character(fd: int) -> str:
+        """Read one decoded scalar without buffering future keystrokes past select."""
+        import codecs
+        import os
+        import select
+
+        encoding = sys.stdin.encoding
+        decoder = codecs.getincrementaldecoder(
+            encoding if encoding is not None else "utf-8"
+        )(errors="replace")
+        while True:
+            chunk = os.read(fd, 1)
+            if not chunk:
+                raise EOFError("Terminal input closed")
+            character = str(decoder.decode(chunk))
+            if character:
+                return character
+            ready, _, _ = select.select([fd], [], [], 0.1)
+            if not ready:
+                return "\ufffd"
 
     # -- Kitty keyboard protocol helpers ------------------------------------
 
     @staticmethod
     def _read_csi_sequence(
         fd: int,
-    ) -> str:  # pragma: no cover — not testable on Windows CI
+    ) -> str:
         """Parse a CSI sequence after ``ESC [`` has been consumed.
 
         Handles both legacy CSI (arrow keys, functional keys) and Kitty
@@ -216,7 +254,11 @@ class KeyReader:
             ready, _, _ = select.select([fd], [], [], 0.1)
             if not ready:
                 return ""  # incomplete sequence
-            ch = sys.stdin.read(1)
+            if KeyReader._pending_unix is not None:
+                ch = KeyReader._pending_unix
+                KeyReader._pending_unix = None
+            else:
+                ch = KeyReader._read_character(fd)
             if ch.isdigit() or ch in ";:":
                 buf.append(ch)
             elif ch.isalpha() or ch in "~u":
@@ -313,7 +355,13 @@ class KeyReader:
             }
             return _alt_map.get(chr(codepoint), "")
 
-        if not ctrl and not alt and 32 <= codepoint <= 126:
+        if (
+            not ctrl
+            and not alt
+            and 32 <= codepoint <= 0x10FFFF
+            and not 0xD800 <= codepoint <= 0xDFFF
+            and chr(codepoint).isprintable()
+        ):
             return chr(codepoint)
 
         return ""

@@ -257,3 +257,10 @@ __marimo__/
 
 # hatch-vcs generated version file
 src/launchline/_version.py
+
+junit.xml
+release/
+
+.semrel/
+.version
+release-changelog.md

@@ -7,7 +7,11 @@ catch the entire family with a single ``except`` clause when needed.
 from __future__ import annotations
 
 
-class LaunchLineError(Exception):
+class AppError(Exception):
+    """Root exception for application-domain failures."""
+
+
+class LaunchLineError(AppError):
     """Base exception for all LaunchLine errors.
 
     Subclassed by every domain-specific exception so that callers may
