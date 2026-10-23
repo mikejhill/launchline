@@ -151,3 +151,42 @@ class TestUnixKeyboard:
         assert console.modes == ["raw", "restore"], (
             "Exceptional exit must restore terminal mode"
         )
+
+
+class TestRawSessionOwnership:
+    """Check actual Unix terminal flags before rendering and after exceptional exit."""
+
+    @pytest.mark.skipif(sys.platform == "win32", reason="Requires an actual Unix PTY")
+    def test_raw_session_restores_terminal_after_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import os
+        import pty
+        import termios
+
+        master, slave = pty.openpty()
+        try:
+            with os.fdopen(slave, "r", encoding="utf-8") as stream:
+                monkeypatch.setattr(sys, "stdin", stream)
+                previous = termios.tcgetattr(stream.fileno())
+                with KeyReader.session():
+                    active = termios.tcgetattr(stream.fileno())
+                    assert not active[3] & (termios.ICANON | termios.ECHO), (
+                        "Input must be raw before render"
+                    )
+                with (
+                    pytest.raises(RuntimeError, match="render boundary"),
+                    KeyReader.session(),
+                ):
+                    raise RuntimeError("render boundary")
+                restored = termios.tcgetattr(stream.fileno())
+                if sys.platform == "darwin":
+                    # XNU tty.c sets PENDIN when canonical mode is restored.
+                    # Compare all configured flags, excluding this kernel queue state.
+                    restored[3] &= ~termios.PENDIN
+                    previous[3] &= ~termios.PENDIN
+                assert restored == previous, (
+                    "Children must inherit restored terminal settings"
+                )
+        finally:
+            os.close(master)

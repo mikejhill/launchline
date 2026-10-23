@@ -35,6 +35,14 @@ class Application:
         re-displays the menu (``on_exit="restart"``) or terminates
         (``on_exit="exit"``).
         """
+        if self._config.provider is not None or any(
+            entry.menu is not None for entry in self._config.entries
+        ):
+            from launchline.menus import MenuApplication
+
+            MenuApplication(self._config).run()
+            return
+
         from launchline.ui import LaunchLineUI
 
         ui = LaunchLineUI(self._config)

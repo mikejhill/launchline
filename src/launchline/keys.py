@@ -12,6 +12,7 @@ from __future__ import annotations
 import contextlib
 import sys
 import time
+from collections.abc import Generator
 from typing import ClassVar
 
 
@@ -22,8 +23,29 @@ class KeyReader:
     logical namespace rather than requiring instantiation.
     """
 
+    _pending_windows: ClassVar[str | None] = None
+    """One Windows scalar preserved independently of console readiness polling."""
+
     _pending_unix: ClassVar[str | None] = None
     """One character read ahead while distinguishing Escape from an Alt sequence."""
+
+    @staticmethod
+    @contextlib.contextmanager
+    def session() -> Generator[None]:
+        """Own raw Unix input across rendering and restore it before child tools."""
+        if sys.platform == "win32" or not sys.stdin.isatty():
+            yield
+            return
+        import termios
+        import tty
+
+        fd = sys.stdin.fileno()
+        previous = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd, termios.TCSANOW)
+            yield
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, previous)
 
     @staticmethod
     def read_key(timeout: float | None = None) -> str:
@@ -58,14 +80,17 @@ class KeyReader:
             raise OSError("Windows keyboard input is unavailable on this platform")
         import msvcrt
 
-        if timeout is not None:
-            deadline = time.monotonic() + timeout
-            while not msvcrt.kbhit():
-                if time.monotonic() >= deadline:
-                    return ""
-                time.sleep(0.01)
-
-        ch: str = msvcrt.getwch()
+        if KeyReader._pending_windows is not None:
+            ch = KeyReader._pending_windows
+            KeyReader._pending_windows = None
+        else:
+            if timeout is not None:
+                deadline = time.monotonic() + timeout
+                while not msvcrt.kbhit():
+                    if time.monotonic() >= deadline:
+                        return ""
+                    time.sleep(0.01)
+            ch = msvcrt.getwch()
         if ch in ("\x00", "\xe0"):
             ch2: str = msvcrt.getwch()
             if ch2 == "H":
@@ -85,7 +110,7 @@ class KeyReader:
                 if ch2 == "[":
                     return KeyReader._read_csi_sequence_windows()
                 # Preserve a quickly typed key after a bare Escape.
-                msvcrt.ungetwch(ch2)
+                KeyReader._pending_windows = ch2
             return "escape"
         if ch == "\x08":
             return "backspace"
@@ -103,6 +128,8 @@ class KeyReader:
             return "ctrl-f"
         if ch == "\x0b":
             return "ctrl-k"
+        if ch == "\x12":
+            return "ctrl-r"
         if ch == "\x15":
             return "ctrl-u"
         if ch == "\x17":
@@ -204,6 +231,8 @@ class KeyReader:
                 return "ctrl-f"
             if ch == "\x0b":
                 return "ctrl-k"
+            if ch == "\x12":
+                return "ctrl-r"
             if ch == "\x15":
                 return "ctrl-u"
             if ch == "\x17":
@@ -342,6 +371,7 @@ class KeyReader:
                 "f": "ctrl-f",
                 "h": "ctrl-h",
                 "k": "ctrl-k",
+                "r": "ctrl-r",
                 "u": "ctrl-u",
                 "w": "ctrl-w",
             }

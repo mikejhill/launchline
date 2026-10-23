@@ -253,7 +253,8 @@ class TestConfigReferenceSync:
 
     def test_settings_fields_match_readme(self) -> None:
         code_fields = {f.name for f in dataclasses.fields(LaunchLineConfig)} - {
-            "entries"
+            "entries",
+            "provider",
         }
         readme_fields = self._readme_table_keys("`[settings]`")
         assert readme_fields == code_fields, (
@@ -273,3 +274,19 @@ class TestConfigReferenceSync:
             assert f"`{value}`" in text or f'`"{value}"`' in text, (
                 f"on_exit value '{value}' not documented in README"
             )
+
+
+class TestProviderReferenceSync:
+    """Keep the root provider declaration distinct from launcher settings."""
+
+    def test_provider_fields_match_readme(self) -> None:
+        """The README must document every provider executable field and timeout."""
+        fields = {field.name for field in dataclasses.fields(EntryConfig)} - {
+            "name",
+            "description",
+            "id",
+            "menu",
+        }
+        assert TestConfigReferenceSync._readme_table_keys("`[provider]`") == fields | {
+            "timeout_seconds"
+        }, "Provider reference must match the executable contract"

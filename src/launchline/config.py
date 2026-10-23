@@ -40,6 +40,26 @@ class EntryConfig:
     description: str = ""
     working_directory: Path | None = None
     env: dict[str, str] = field(default_factory=dict)
+    id: str = ""
+    menu: MenuConfig | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderConfig:
+    """Explicit trusted executable and bounded menu generation deadline."""
+
+    entry: EntryConfig
+    timeout_seconds: int = 10
+
+
+@dataclass(frozen=True, slots=True)
+class MenuConfig:
+    """A static or generated menu with session caching and return policy."""
+
+    entries: tuple[EntryConfig, ...] = ()
+    title: str = "LaunchLine"
+    provider: ProviderConfig | None = None
+    refresh_on_return: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +89,8 @@ class LaunchLineConfig:
     clear_on_launch: bool = True
     ghost_text: bool = True
     numeric_trigger: bool = True
+    provider: ProviderConfig | None = None
+    refresh_on_return: bool = False
 
 
 class ConfigLoader:
@@ -162,7 +184,7 @@ description = "PowerShell 7"
         try:
             with config_path.open("rb") as stream:
                 raw = ConfigLoader._table(tomllib.load(stream), "config")
-        except tomllib.TOMLDecodeError as exc:
+        except (tomllib.TOMLDecodeError, UnicodeDecodeError) as exc:
             raise ConfigurationError(f"Invalid TOML in {config_path}: {exc}") from exc
 
         settings = ConfigLoader._table(raw.get("settings", {}), "settings")
@@ -172,18 +194,14 @@ description = "PowerShell 7"
             raise ConfigurationError(
                 f"Invalid on_exit value: '{on_exit}'. Must be one of: restart, exit"
             )
-        raw_entries = raw.get("entries", [])
-        if not isinstance(raw_entries, list) or not raw_entries:
-            raise ConfigurationError(
-                "No entries configured; entries must be a nonempty array of tables."
-            )
-        entries = tuple(
-            ConfigLoader._entry(value, index)
-            for index, value in enumerate(raw_entries, 1)
-        )
+        menu = ConfigLoader._menu(raw, title, depth=0, root=True)
         return LaunchLineConfig(
-            entries=entries,
+            entries=menu.entries,
             title=title,
+            provider=menu.provider,
+            refresh_on_return=ConfigLoader._value(
+                settings, "refresh_on_return", False, bool
+            ),
             on_exit=on_exit,
             show_exit=ConfigLoader._value(settings, "show_exit", True, bool),
             clear_on_launch=ConfigLoader._value(
@@ -222,12 +240,25 @@ description = "PowerShell 7"
         return value
 
     @staticmethod
-    def _entry(value: object, index: int) -> EntryConfig:
+    def _entry(
+        value: object, index: int, depth: int = 0, max_entries: int | None = None
+    ) -> EntryConfig:
         """Convert one validated entry without losing invalid values."""
         table = ConfigLoader._table(value, f"Entry {index}")
         name = ConfigLoader._value(table, "name", "", str)
         command = ConfigLoader._value(table, "command", "", str)
-        if not name or not command:
+        submenu = None
+        if "menu" in table:
+            if "command" in table or any(
+                key in table for key in ("args", "env", "working_directory")
+            ):
+                raise ConfigurationError(
+                    f"Entry {index}: menu and command fields are exclusive."
+                )
+            submenu = ConfigLoader._menu(
+                table["menu"], name, depth=depth + 1, max_entries=max_entries
+            )
+        if not name or (not command and submenu is None):
             raise ConfigurationError(
                 f"Entry {index}: 'name' and 'command' are required."
             )
@@ -264,6 +295,82 @@ description = "PowerShell 7"
             description=ConfigLoader._value(table, "description", "", str),
             working_directory=wd,
             env=typed_env,
+            id=ConfigLoader._value(table, "id", "", str),
+            menu=submenu,
+        )
+
+    @staticmethod
+    def parse_entries(
+        value: object, *, depth: int = 0, max_entries: int | None = None
+    ) -> tuple[EntryConfig, ...]:
+        """Validate entries with shared depth, size and identity rules."""
+        if not isinstance(value, list):
+            raise ConfigurationError("entries must be an array of tables.")
+        if max_entries is not None and len(value) > max_entries:
+            raise ConfigurationError(
+                f"entries must contain at most {max_entries} tables."
+            )
+        entries = tuple(
+            ConfigLoader._entry(item, index, depth, max_entries)
+            for index, item in enumerate(value, 1)
+        )
+        identities = [entry.id for entry in entries if entry.id]
+        if len(set(identities)) != len(identities):
+            raise ConfigurationError("Entry ids must be unique within each menu.")
+        return entries
+
+    @staticmethod
+    def _menu(
+        value: object,
+        title: str,
+        *,
+        depth: int,
+        root: bool = False,
+        max_entries: int | None = None,
+    ) -> MenuConfig:
+        """Parse a menu declaration without executing any configured provider."""
+        if depth >= 16:
+            raise ConfigurationError(
+                "Menus may be nested at most 16 levels including root."
+            )
+        table = ConfigLoader._table(value, "menu")
+        provider = None
+        if "provider" in table:
+            if "entries" in table:
+                raise ConfigurationError(
+                    "A menu must declare entries or provider, not both."
+                )
+            raw = ConfigLoader._table(table["provider"], "provider")
+            if "menu" in raw:
+                raise ConfigurationError("A provider must be an executable command.")
+            executable_fields = {
+                key: raw[key]
+                for key in ("command", "args", "env", "working_directory")
+                if key in raw
+            }
+            executable = ConfigLoader._entry(
+                {**executable_fields, "name": "menu provider"}, 1
+            )
+            timeout = raw.get("timeout_seconds", 10)
+            if type(timeout) is not int or not 1 <= timeout <= 300:
+                raise ConfigurationError(
+                    "timeout_seconds must be an integer from 1 to 300."
+                )
+            provider = ProviderConfig(executable, timeout)
+        entries = ConfigLoader.parse_entries(
+            table.get("entries", []), depth=depth, max_entries=max_entries
+        )
+        if root and not entries and provider is None:
+            raise ConfigurationError(
+                "No entries configured; entries must be a nonempty array of tables."
+            )
+        return MenuConfig(
+            entries,
+            title if root else ConfigLoader._value(table, "title", title, str),
+            provider,
+            False
+            if root
+            else ConfigLoader._value(table, "refresh_on_return", False, bool),
         )
 
     @staticmethod
