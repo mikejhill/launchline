@@ -38,9 +38,29 @@ class MutationCheck:
                 "tests/test_contract.py",
                 "tests/test_config.py",
                 "tests/test_ui.py",
+                "tests/test_ui_performance.py",
                 "tests/test_runner.py",
             ]
             mutants += [
+                (
+                    "ui",
+                    "repeated-display-copy",
+                    "if self._displayed is None:",
+                    "if True:",
+                ),
+                (
+                    "ui",
+                    "stale-filter-snapshot",
+                    "self._highlight_idx = 0\n        self._viewport_offset = 0\n"
+                    "        self._displayed = None",
+                    "self._highlight_idx = 0\n        self._viewport_offset = 0",
+                ),
+                (
+                    "ui",
+                    "offscreen-name-alignment",
+                    "max_name_len = self._max_name_len",
+                    "max_name_len = 4",
+                ),
                 ("fuzzy", "case-fold", "candidate.lower()", "candidate"),
                 ("fuzzy", "no-match", "return None", "return 0"),
                 (

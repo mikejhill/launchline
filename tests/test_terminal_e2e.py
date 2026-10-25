@@ -113,6 +113,37 @@ class TerminalSession:
 class TestTerminalWorkflows:
     """Exercise the installed runtime rather than replacing keyboard or process APIs."""
 
+    def test_large_menu_search_launches_only_selected_leaf(
+        self, tmp_path: Path
+    ) -> None:
+        """Filter a thousand real entries and launch the final row through a PTY."""
+        config = tmp_path / "large.toml"
+        entries = []
+        for index in range(1000):
+            entries.append(
+                "[[entries]]\nname="
+                + json.dumps(f"Project {index:04d}")
+                + "\ncommand="
+                + json.dumps(sys.executable)
+                + "\nargs="
+                + json.dumps(["-c", f"print('SELECTED_{index}', flush=True)"])
+                + "\n"
+            )
+        config.write_text(
+            '[settings]\non_exit="exit"\nclear_on_launch=false\n'
+            "numeric_trigger=false\n" + "".join(entries),
+            encoding="utf-8",
+        )
+        with TerminalSession(self._command(config)) as session:
+            session.wait("Project 0000")
+            session.write("Project 0999")
+            session.wait("Project 0999")
+            session.write("\r")
+            session.wait("SELECTED_999")
+            assert session.exited() == 0, session.output
+            assert "SELECTED_0" not in session.output
+            assert "\x1b[?1049l" in session.output
+
     @staticmethod
     def _command(config: Path) -> list[str]:
         """Select the runtime under test without contacting any external service."""

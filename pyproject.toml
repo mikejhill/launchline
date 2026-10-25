@@ -129,6 +129,11 @@ test = "pytest --junitxml=junit.xml"
 benchmark = "python docs/validation/benchmark.py docs/validation/current.json"
 fix = ["format", "lint-fix", "format"]
 check = ["format-check", "lint", "typecheck", "test"]
+test-fast = "pytest -q -o addopts= --ignore=tests/test_terminal_e2e.py --ignore=tests/test_providers.py"
+check-fast = ["format-check", "lint", "typecheck", "test-fast"]
+benchmark-ui = "python scripts/benchmark_ui.py .tmp/ui-current.json"
+build = "uv build"
+release-check = ["check", "build", "package-smoke", "mutation", "mutation-menus"]
 
 [tool.poe.tasks.package-smoke]
 cmd = "python scripts/package_smoke.py"
