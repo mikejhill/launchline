@@ -1,0 +1,127 @@
+name: Repair GitHub release assets
+'on':
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Already-published PyPI version; no bump, rebuild or republish
+        type: string
+        required: true
+      source-run-id:
+        description: Original release.yml run containing trusted-release artifacts
+        type: string
+        required: true
+      verify-only:
+        description: Verify original source, provenance and registry bytes without changing GitHub releases
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  prepare:
+    name: Verify original published distributions
+    if: github.ref == 'refs/heads/main' && github.actor == 'mikejhill' && github.triggering_actor == 'mikejhill'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      attestations: read
+    outputs:
+      source-sha: ${{ steps.verify.outputs.source_sha }}
+      artifact-id: ${{ steps.dist.outputs.artifact-id }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        ref: ${{ github.sha }}
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        name: trusted-release
+        run-id: ${{ inputs.source-run-id }}
+        github-token: ${{ github.token }}
+        path: release
+    - name: Verify original source, registry hashes and attestation
+      id: verify
+      env:
+        GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ inputs.version }}
+        SOURCE_RUN_ID: ${{ inputs.source-run-id }}
+      run: python3 scripts/repair_release.py "$VERSION" "$SOURCE_RUN_ID"
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      id: dist
+      with:
+        name: verified-repair
+        path: release/
+        if-no-files-found: error
+        retention-days: 7
+  github-release:
+    name: Repair verified GitHub assets only
+    needs: prepare
+    if: github.ref == 'refs/heads/main' && github.actor == 'mikejhill' && github.triggering_actor == 'mikejhill' && !inputs.verify-only
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        artifact-ids: ${{ needs.prepare.outputs.artifact-id }}
+        path: release
+    - name: Reconcile original assets without rebuilding or retagging
+      env:
+        GH_TOKEN: ${{ github.token }}
+        TAG: v${{ inputs.version }}
+        SOURCE_SHA: ${{ needs.prepare.outputs.source-sha }}
+      run: |
+        set -euo pipefail
+        # The approved immutable-v* ruleset must already prohibit tag updates/deletion.
+        ancestor=$(gh api "repos/$GITHUB_REPOSITORY/compare/$SOURCE_SHA...main" --jq .merge_base_commit.sha)
+        test "$ancestor" = "$SOURCE_SHA" || { echo 'Release commit is no longer on main.' >&2; exit 1; }
+        [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+        [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+        actual=$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)
+        test "$actual" = "$SOURCE_SHA" || { echo 'Tag does not match the trusted merge.' >&2; exit 1; }
+        if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          :
+        else
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "$TAG" --generate-notes --notes-file release/release-notes.md
+        fi
+        # Check every existing asset before uploading anything. Never overwrite bytes.
+        for file in release/dist/* release/release-manifest.json release/SHA256SUMS; do
+          name=$(basename "$file")
+          local_hash=$(sha256sum "$file" | cut -d ' ' -f1)
+          remote_hash=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .digest")
+          if [ -n "$remote_hash" ]; then
+            if [ "$remote_hash" = null ]; then
+              mkdir -p "$RUNNER_TEMP/verify-assets"
+              gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$name" --dir "$RUNNER_TEMP/verify-assets"
+              remote_hash="sha256:$(sha256sum "$RUNNER_TEMP/verify-assets/$name" | cut -d ' ' -f1)"
+            fi
+            test "$remote_hash" = "sha256:$local_hash" || { echo "Conflicting release asset: $name" >&2; exit 1; }
+          fi
+        done
+        for file in release/dist/* release/release-manifest.json release/SHA256SUMS; do
+          name=$(basename "$file")
+          found=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .name")
+          if [ -z "$found" ]; then
+            gh release upload "$TAG" "$file" --repo "$GITHUB_REPOSITORY"
+          fi
+        done
+        # Confirm uploaded bytes before making the draft visible.
+        for file in release/dist/* release/release-manifest.json release/SHA256SUMS; do
+          name=$(basename "$file")
+          local_hash=$(sha256sum "$file" | cut -d ' ' -f1)
+          remote_hash=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .digest")
+          if [ "$remote_hash" = null ]; then
+            mkdir -p "$RUNNER_TEMP/verify-final-assets"
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$name" --dir "$RUNNER_TEMP/verify-final-assets"
+            remote_hash="sha256:$(sha256sum "$RUNNER_TEMP/verify-final-assets/$name" | cut -d ' ' -f1)"
+          fi
+          test "$remote_hash" = "sha256:$local_hash" || { echo "Uploaded asset differs: $name" >&2; exit 1; }
+        done
+        test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)" = "$SOURCE_SHA"
+        gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+        test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = false
