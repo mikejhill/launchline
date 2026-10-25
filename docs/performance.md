@@ -39,7 +39,8 @@ latency. Dimension mock overhead is included equally in both runs.
 | 10,000 / navigate | 19.35 | 3.13 | 18.67–19.61 | 2.98–3.60 |
 | 10,000 / construct | 2,281.63 | 2,517.70 | 2,226.83–2,748.10 | 2,398.32–2,830.43 |
 
-Large-menu warm rendering is 14.3 times faster and navigation 6.2 times faster.
+The paired samples show large-menu warm rendering 14.3 times faster and
+navigation 6.2 times faster.
 Construction pays one width scan (about 236 µs extra at 10,000 entries), recovered
 within one subsequent frame in this fixture. A cached display list retains one
 reference per visible match until invalidation. Search remains linear in menu
@@ -55,10 +56,14 @@ construction, initial imports and config parsing. The real CLI suite separately
 checks startup, config errors, keyboard input, cancellation and child execution.
 
 The repeat window was 2026-10-25 17:10:59–17:11:13 UTC. Host CPU samples were 23%
-before and after. Other local validation was stopped during measurement;
-background applications/monitoring remained active. Initial paired runs showed
-the same large-menu effect. Laptop distributions are evidence, not portable
-latency guarantees. No prolonged stress load or power/thermal changes were used.
+before and after. This worktree's validation was stopped during measurement;
+background applications/monitoring remained active. A quiet interval from the
+concurrent VerdiClip worker was not independently confirmed, so interference
+cannot be ruled out and the wall-clock ratios are illustrative. Initial paired
+runs showed the same large-menu effect; deterministic traversal guards and
+profiles support the reduction in work independently of timing. Laptop
+distributions are evidence, not portable latency guarantees. No prolonged stress
+load or power/thermal changes were used.
 
 ## Regression strategy
 
