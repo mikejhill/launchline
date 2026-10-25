@@ -264,3 +264,6 @@ release/
 .semrel/
 .version
 release-changelog.md
+release-notes.md
+release-manifest.json
+SHA256SUMS

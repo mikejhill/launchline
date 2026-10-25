@@ -1,7 +1,12 @@
 name: CI
 'on':
   workflow_call: null
-  workflow_dispatch: null
+  workflow_dispatch:
+    inputs:
+      expected-sha:
+        description: Require the release PR head to match this immutable commit
+        type: string
+        required: false
   push:
     branches:
     - main
@@ -34,6 +39,15 @@ jobs:
       with:
         persist-credentials: false
         ref: ${{ github.event.pull_request.head.sha || github.sha }}
+    - name: Verify dispatched release PR head
+      if: github.event_name == 'workflow_dispatch' && inputs.expected-sha != ''
+      shell: bash
+      env:
+        EXPECTED_SHA: ${{ inputs.expected-sha }}
+      run: |
+        set -euo pipefail
+        [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 1
+        test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
     - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e
       with:
         python-version: ${{ matrix.python }}
@@ -59,9 +73,7 @@ jobs:
       if: always()
       with:
         name: evidence-${{ matrix.os }}-${{ matrix.python }}
-        path: 'junit.xml
-
+        path: |
+          junit.xml
           docs/validation/*json
-
-          '
         if-no-files-found: error

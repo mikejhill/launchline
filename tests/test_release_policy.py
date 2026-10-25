@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -21,7 +23,13 @@ class TestPublisherPolicy:
             ("normal", 0, True),
             ("tag-conflict", 1, False),
             ("not-on-main", 1, False),
-            ("retry", 0, True),
+            ("retry", 0, False),
+            ("partial-retry", 0, True),
+            ("asset-conflict", 1, False),
+            ("missing-digest", 0, False),
+            ("download-failed", 1, False),
+            ("upload-failed", 1, True),
+            ("readback-conflict", 1, True),
         ],
     )
     def test_publisher_refuses_conflicts_and_accepts_same_commit_retry(
@@ -49,6 +57,26 @@ class TestPublisherPolicy:
             "Reviewed fixture notes", encoding="utf-8"
         )
         (release / "dist/fixture.whl").write_bytes(b"fixture")
+        (release / "release-manifest.json").write_bytes(b"fixture")
+        (release / "SHA256SUMS").write_bytes(b"fixture")
+        asset_names = ["fixture.whl", "release-manifest.json", "SHA256SUMS"]
+        if scenario in {"normal", "upload-failed", "readback-conflict"}:
+            asset_names = []
+        elif scenario in {"partial-retry", "asset-conflict"}:
+            asset_names = ["fixture.whl"]
+        digest = "sha256:" + hashlib.sha256(b"fixture").hexdigest()
+        assets = [
+            {
+                "name": name,
+                "digest": None
+                if name == "fixture.whl"
+                and scenario in {"missing-digest", "download-failed"}
+                else "sha256:conflicting"
+                if scenario == "asset-conflict"
+                else digest,
+            }
+            for name in asset_names
+        ]
         log = tmp_path / "github-calls"
         python_path = str(Path(sys.executable)).replace("\\", "/")
         fake = r"""
@@ -67,9 +95,28 @@ gh() {
       if [ "$SCENARIO" = tag-conflict ]; then
         echo bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
       else echo "$GITHUB_SHA"; fi ;;
-    "release view"*) [ "$SCENARIO" = retry ] ;;
+    "release view"*)
+      if [[ "$*" == *"--json assets"* ]]; then
+        printf '%s' "$ASSET_JSON" | "$FIXTURE_JQ" -r "${@: -1}"
+      elif [[ "$*" == *"--json isDraft"* ]]; then echo false
+      else [ "$SCENARIO" != normal ]; fi ;;
     "release create"*) return 0 ;;
-    "release upload"*) return 0 ;;
+    "release edit"*) return 0 ;;
+    "release upload"*)
+      if [ "$SCENARIO" = upload-failed ]; then return 1; fi
+      name=$(basename "$4")
+      digest="sha256:$(sha256sum "$4" | cut -d ' ' -f1)"
+      if [ "$SCENARIO" = readback-conflict ]; then digest=sha256:wrong; fi
+      ASSET_JSON=$(printf '%s' "$ASSET_JSON" | "$FIXTURE_JQ" \
+        --arg name "$name" --arg digest "$digest" \
+        '.assets += [{name:$name,digest:$digest}]') ;;
+    "release download"*)
+      if [ "$SCENARIO" = download-failed ]; then return 1; fi
+      for dir in verify-assets verify-final-assets; do
+        if [ -d "$RUNNER_TEMP/$dir" ]; then
+          printf fixture > "$RUNNER_TEMP/$dir/fixture.whl"
+        fi
+      done ;;
     *) echo "Unexpected offline GitHub call" >&2; return 99 ;;
   esac
 }
@@ -79,6 +126,8 @@ gh() {
         else:
             bash = shutil.which("bash")
             assert bash is not None, "Publisher simulations require Bash"
+        jq = shutil.which("jq")
+        assert jq is not None, "Publisher simulations require jq, as on hosted runners"
         result = subprocess.run(
             [bash, "-c", fake + body],
             cwd=tmp_path,
@@ -91,6 +140,9 @@ gh() {
                 "GITHUB_REPOSITORY": "fixture/launchline",
                 "TAG": "v0.1.0",
                 "GH_TOKEN": "offline-fixture",
+                "RUNNER_TEMP": str(tmp_path).replace("\\", "/"),
+                "FIXTURE_JQ": jq.replace("\\", "/"),
+                "ASSET_JSON": json.dumps({"assets": assets}),
             },
             capture_output=True,
             text=True,
@@ -99,6 +151,8 @@ gh() {
         assert result.returncode == expected, result.stderr
         calls = log.read_text(encoding="utf-8")
         assert ("release upload" in calls) == publishes, calls
+        assert "--clobber" not in calls
+        assert ("release edit" in calls) == (expected == 0)
         if scenario == "normal":
             assert "--generate-notes" in calls, (
                 "Generated release notes must be retained"

@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Menus
+## [0.4.1] - 2026-10-25
+
+### Changed
+
+- Cache filtered menu rows and immutable alignment widths to avoid full-menu
+  traversal on warm rendering and navigation.
+- Add deterministic scaling checks, large-menu terminal coverage, bounded
+  mutations, and separate fast and full release validation commands.
+- Document timing distributions, construction tradeoffs, and concurrent-load
+  limitations in [performance validation](docs/performance.md).
+
+## [0.4.0] - 2026-10-23
+
+### Added
 
 - Add nested menus with Back navigation, lazy JSON providers, explicit refresh/retry,
   configurable parent refresh, and stable selection restoration.
@@ -15,6 +28,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   snapshots with inactive least-recently-used eviction. Existing static configs remain valid.
 - Add shared declaration fixtures, actual provider/terminal tests and seeded menu mutations.
   See [menu lifecycle and provider contract](docs/menus.md) for examples and limits.
+
+## [0.3.0] - 2026-10-23
+
+### Changed
+
+- Align configuration, search scoring, keyboard handling, and child exit behavior
+  with the Rust implementation; add cross-platform compatibility fixtures.
+- Add strict typing, branch coverage, real-terminal and installed-package tests,
+  bounded mutation checks, and measured search/startup validation.
+- Isolate trusted release publication from read-only tests and builds, pin release
+  tools and actions, protect source tags, and attest tested distributions.
+
+## [0.2.1] - 2026-03-30
 
 ### Removed
 

@@ -3,56 +3,66 @@ name: Release
   push:
     branches:
     - main
-  workflow_dispatch:
-    inputs:
-      force-patch:
-        description: Force patch bump when no releasable commits exist
-        type: boolean
-        default: false
+  workflow_dispatch: null
 permissions:
   contents: read
 concurrency:
   group: release
   cancel-in-progress: false
 jobs:
-  target:
+  release-please:
     if: github.ref == 'refs/heads/main' && github.actor == 'mikejhill' && github.triggering_actor == 'mikejhill'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     outputs:
-      version: ${{ steps.semrel.outputs.version }}
+      version: ${{ steps.target.outputs.version }}
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
     steps:
-    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+    - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7
+      id: release
       with:
-        persist-credentials: false
-        fetch-depth: 0
-        ref: ${{ github.sha }}
-    - name: Download checksum-pinned semantic-release CLI
-      shell: bash
-      run: "set -euo pipefail\ndest=\"$RUNNER_TEMP/semantic-release-v2.31.0\"\ncurl --fail --silent --show-error --location\
-        \ --proto '=https' --tlsv1.2 \\\n  https://github.com/go-semantic-release/semantic-release/releases/download/v2.31.0/semantic-release_v2.31.0_linux_amd64\
-        \ \\\n  --output \"$dest\"\nprintf '%s  %s\\n' 'b8f518b1aeb1d1742f4e6e91a179b707cea4309a64fe3854f465bf724f04f6d3'\
-        \ \"$dest\" | sha256sum --check --strict\nchmod 0755 \"$dest\"\n"
-    - name: Preload verified runtime plugins
-      run: python3 scripts/prepare_semrel.py
-    - name: Determine version without publishing
-      id: semrel
-      shell: bash
+        token: ${{ github.token }}
+        config-file: release-please-config.json
+        manifest-file: .release-please-manifest.json
+    - name: Validate created release tag and exact source
+      id: target
+      if: steps.release.outputs.release_created == 'true'
       env:
-        GITHUB_TOKEN: ${{ github.token }}
-        FORCE_PATCH: ${{ inputs.force-patch || false }}
-      run: 'set -euo pipefail
-
-        args=(--dry --allow-initial-development-versions --changelog release-changelog.md --allow-no-changes --plugin-resolver-disable-batch-prefetch)
-
-        if [ "$FORCE_PATCH" = true ]; then args+=(--force-bump-patch-version); fi
-
-        "$RUNNER_TEMP/semantic-release-v2.31.0" "${args[@]}"
-
-        python3 scripts/release_version.py
-
-        '
-    name: Target
+        GH_TOKEN: ${{ github.token }}
+        TAG: ${{ steps.release.outputs.tag_name }}
+      run: |
+        set -euo pipefail
+        [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+        actual=$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)
+        test "$actual" = "$GITHUB_SHA" || { echo 'Release tag does not match reviewed merge.' >&2; exit 1; }
+        printf 'version=%s\n' "${TAG#v}" >> "$GITHUB_OUTPUT"
+    - name: Dispatch normal CI for the release pull request
+      if: steps.release.outputs.prs_created == 'true'
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR_JSON: ${{ steps.release.outputs.pr }}
+      run: |
+        set -euo pipefail
+        branch=$(jq -er '.headBranchName' <<< "$PR_JSON")
+        number=$(jq -er '.number' <<< "$PR_JSON")
+        case "$branch" in release-please--branches--main*) ;; *) echo 'Unexpected release branch.' >&2; exit 1 ;; esac
+        pr=$(gh pr view "$number" --repo "$GITHUB_REPOSITORY" --json headRefName,headRefOid,headRepositoryOwner,baseRefName,state)
+        test "$(jq -r .headRefName <<< "$pr")" = "$branch"
+        test "$(jq -r .headRepositoryOwner.login <<< "$pr")" = "${GITHUB_REPOSITORY%/*}"
+        test "$(jq -r .baseRefName <<< "$pr")" = main
+        test "$(jq -r .state <<< "$pr")" = OPEN
+        sha=$(jq -er '.headRefOid' <<< "$pr")
+        [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || exit 1
+        # GITHUB_TOKEN events do not trigger PR CI; workflow_dispatch does.
+        # This runs the same complete CI, without approving a PR or workflow run.
+        gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref "$branch" --field expected-sha="$sha"
+    name: Version and changelog
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: write
   ci:
     name: Python (${{ matrix.os }}, ${{ matrix.python }})
     runs-on: ${{ matrix.os }}
@@ -98,17 +108,15 @@ jobs:
       if: always()
       with:
         name: evidence-${{ matrix.os }}-${{ matrix.python }}
-        path: 'junit.xml
-
+        path: |
+          junit.xml
           docs/validation/*json
-
-          '
         if-no-files-found: error
-    needs: target
-    if: needs.target.outputs.version != ''
+    needs: release-please
+    if: needs.release-please.outputs.release_created == 'true'
   build:
     needs:
-    - target
+    - release-please
     - ci
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -122,96 +130,178 @@ jobs:
         ref: ${{ github.sha }}
     - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e
     - name: Build tested version without publishing credentials
-      run: '[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
-
+      run: |
+        [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
         uv sync --locked --group dev
-
         uv run poe check
-
-        python3 - <<''PY''
-
+        python3 - <<'PY'
         import os,pathlib
-
-        p=pathlib.Path(''README.md'')
-
-        p.write_text(p.read_text().replace(''(docs/'', ''(https://raw.githubusercontent.com/''+os.environ[''GITHUB_REPOSITORY'']+''/v''+os.environ[''VERSION'']+''/docs/''))
-
+        p=pathlib.Path('README.md')
+        p.write_text(p.read_text().replace('(docs/', '(https://raw.githubusercontent.com/'+os.environ['GITHUB_REPOSITORY']+'/v'+os.environ['VERSION']+'/docs/'))
         PY
-
         uv build
-
         uv run python scripts/package_smoke.py
-
-        printf ''Built from reviewed main commit %s\n'' "$GITHUB_SHA" > release-notes.md
-
-        '
+        uv run python scripts/release_artifacts.py "$VERSION" "$GITHUB_SHA"
       env:
-        VERSION: ${{ needs.target.outputs.version }}
-        SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.target.outputs.version }}
+        VERSION: ${{ needs.release-please.outputs.version }}
+        SETUPTOOLS_SCM_PRETEND_VERSION: ${{ needs.release-please.outputs.version }}
     - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
       id: dist
       with:
         name: trusted-release
-        path: 'dist/*
-
-          release-notes.md'
+        path: |-
+          dist/*
+          release-notes.md
+          release-manifest.json
+          SHA256SUMS
         if-no-files-found: error
         retention-days: 7
     name: Build
   github-release:
-    if: github.ref == 'refs/heads/main' && github.actor == 'mikejhill' && github.triggering_actor == 'mikejhill' && needs.build.result
+    if: github.ref == 'refs/heads/main' && github.actor == 'mikejhill' && github.triggering_actor == 'mikejhill' && needs.pypi.result
       == 'success'
     needs:
-    - target
+    - release-please
     - build
     - attest
+    - pypi
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      contents: write # Create immutable refs and upload tested release artifacts.
+      contents: write
     steps:
     - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
       with:
         artifact-ids: ${{ needs.build.outputs.artifact-id }}
         path: release
     - name: Publish same-run artifacts from trusted merge
-      run: "# The approved immutable-v* ruleset must already prohibit tag updates/deletion.\nancestor=$(gh api \"repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...main\"\
-        \ --jq .merge_base_commit.sha)\ntest \"$ancestor\" = \"$GITHUB_SHA\" || { echo 'Release commit is no longer on main.'\
-        \ >&2; exit 1; }\npython3 - <<'PY'\nimport json,os,pathlib,re\nassert re.fullmatch(r'v[0-9]+\\.[0-9]+\\.[0-9]+',os.environ['TAG'])\n\
-        assert re.fullmatch(r'[0-9a-f]{40}',os.environ['GITHUB_SHA'])\npathlib.Path('release-ref.json').write_text(json.dumps({'ref':'refs/tags/'+os.environ['TAG'],'sha':os.environ['GITHUB_SHA']}))\n\
-        PY\n# Ref creation is atomic: if another process created it first, accept only the same commit.\nif ! gh api --method\
-        \ POST \"repos/$GITHUB_REPOSITORY/git/refs\" --input release-ref.json >/dev/null 2>tag-create-error.txt; then\n  actual=$(gh\
-        \ api \"repos/$GITHUB_REPOSITORY/commits/$TAG\" --jq .sha)\n  test \"$actual\" = \"$GITHUB_SHA\" || { echo 'Tag creation\
-        \ failed or a conflicting tag exists.' >&2; exit 1; }\nfi\nactual=$(gh api \"repos/$GITHUB_REPOSITORY/commits/$TAG\"\
-        \ --jq .sha)\ntest \"$actual\" = \"$GITHUB_SHA\" || { echo 'Tag does not match the trusted merge.' >&2; exit 1; }\n\
-        if gh release view \"$TAG\" --repo \"$GITHUB_REPOSITORY\" >/dev/null 2>&1; then\n  :\nelse\n  gh release create \"\
-        $TAG\" --repo \"$GITHUB_REPOSITORY\" --verify-tag --title \"$TAG\" --generate-notes --notes-file release/release-notes.md\n\
-        fi\ngh release upload \"$TAG\" release/dist/* --repo \"$GITHUB_REPOSITORY\" --clobber\n"
+      run: |
+        set -euo pipefail
+        # The approved immutable-v* ruleset must already prohibit tag updates/deletion.
+        ancestor=$(gh api "repos/$GITHUB_REPOSITORY/compare/$GITHUB_SHA...main" --jq .merge_base_commit.sha)
+        test "$ancestor" = "$GITHUB_SHA" || { echo 'Release commit is no longer on main.' >&2; exit 1; }
+        python3 - <<'PY'
+        import json,os,pathlib,re
+        assert re.fullmatch(r'v[0-9]+\.[0-9]+\.[0-9]+',os.environ['TAG'])
+        assert re.fullmatch(r'[0-9a-f]{40}',os.environ['GITHUB_SHA'])
+        pathlib.Path('release-ref.json').write_text(json.dumps({'ref':'refs/tags/'+os.environ['TAG'],'sha':os.environ['GITHUB_SHA']}))
+        PY
+        # Ref creation is atomic: if another process created it first, accept only the same commit.
+        if ! gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" --input release-ref.json >/dev/null 2>tag-create-error.txt; then
+          actual=$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)
+          test "$actual" = "$GITHUB_SHA" || { echo 'Tag creation failed or a conflicting tag exists.' >&2; exit 1; }
+        fi
+        actual=$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)
+        test "$actual" = "$GITHUB_SHA" || { echo 'Tag does not match the trusted merge.' >&2; exit 1; }
+        if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+          :
+        else
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --draft --title "$TAG" --generate-notes --notes-file release/release-notes.md
+        fi
+        # Check every existing asset before uploading anything. Never overwrite bytes.
+        for file in release/dist/* release/release-manifest.json release/SHA256SUMS; do
+          name=$(basename "$file")
+          local_hash=$(sha256sum "$file" | cut -d ' ' -f1)
+          remote_hash=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .digest")
+          if [ -n "$remote_hash" ]; then
+            if [ "$remote_hash" = null ]; then
+              mkdir -p "$RUNNER_TEMP/verify-assets"
+              gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$name" --dir "$RUNNER_TEMP/verify-assets"
+              remote_hash="sha256:$(sha256sum "$RUNNER_TEMP/verify-assets/$name" | cut -d ' ' -f1)"
+            fi
+            test "$remote_hash" = "sha256:$local_hash" || { echo "Conflicting release asset: $name" >&2; exit 1; }
+          fi
+        done
+        for file in release/dist/* release/release-manifest.json release/SHA256SUMS; do
+          name=$(basename "$file")
+          found=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .name")
+          if [ -z "$found" ]; then
+            gh release upload "$TAG" "$file" --repo "$GITHUB_REPOSITORY"
+          fi
+        done
+        # Confirm uploaded bytes before making the draft visible.
+        for file in release/dist/* release/release-manifest.json release/SHA256SUMS; do
+          name=$(basename "$file")
+          local_hash=$(sha256sum "$file" | cut -d ' ' -f1)
+          remote_hash=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq ".assets[] | select(.name == \"$name\") | .digest")
+          if [ "$remote_hash" = null ]; then
+            mkdir -p "$RUNNER_TEMP/verify-final-assets"
+            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern "$name" --dir "$RUNNER_TEMP/verify-final-assets"
+            remote_hash="sha256:$(sha256sum "$RUNNER_TEMP/verify-final-assets/$name" | cut -d ' ' -f1)"
+          fi
+          test "$remote_hash" = "sha256:$local_hash" || { echo "Uploaded asset differs: $name" >&2; exit 1; }
+        done
+        test "$(gh api "repos/$GITHUB_REPOSITORY/commits/$TAG" --jq .sha)" = "$GITHUB_SHA"
+        gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false
+        test "$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft --jq .isDraft)" = false
       env:
         GH_TOKEN: ${{ github.token }}
-        TAG: v${{ needs.target.outputs.version }}
+        TAG: v${{ needs.release-please.outputs.version }}
     name: Github Release
   pypi:
-    if: github.ref == 'refs/heads/main' && github.actor == 'mikejhill' && github.triggering_actor == 'mikejhill' && needs.github-release.result
+    if: github.ref == 'refs/heads/main' && github.actor == 'mikejhill' && github.triggering_actor == 'mikejhill' && needs.attest.result
       == 'success'
     needs:
-    - target
+    - release-please
     - build
-    - github-release
+    - attest
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: pypi
     permissions:
-      id-token: write # OIDC identity for attestation or trusted PyPI publishing.
+      id-token: write
     steps:
     - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
       with:
         artifact-ids: ${{ needs.build.outputs.artifact-id }}
         path: release
+    - name: Reject conflicting files already present on PyPI
+      env:
+        VERSION: ${{ needs.release-please.outputs.version }}
+      run: |
+        python3 - <<'PY'
+        import hashlib,json,os,pathlib,urllib.error,urllib.request
+        version=os.environ['VERSION']
+        expected={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in pathlib.Path('release/dist').iterdir() if p.is_file()}
+        try:
+            with urllib.request.urlopen('https://pypi.org/pypi/launchline/'+version+'/json',timeout=30) as response:
+                published=json.load(response)
+        except urllib.error.HTTPError as error:
+            if error.code != 404 or os.environ.get('REQUIRE_COMPLETE') == 'true': raise
+        else:
+            if published['info']['version'] != version: raise ValueError('Registry version mismatch')
+            for artifact in published['urls']:
+                if artifact['filename'] not in expected: raise ValueError('Unexpected existing distribution')
+                if artifact['digests']['sha256'] != expected[artifact['filename']]: raise ValueError('Conflicting published distribution')
+            if os.environ.get('REQUIRE_COMPLETE') == 'true' and {item['filename'] for item in published['urls']} != set(expected):
+                raise ValueError('Published distributions are incomplete')
+        PY
     - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086
       with:
         packages-dir: release/dist/
         skip-existing: true
+    - name: Verify complete published PyPI distributions
+      env:
+        VERSION: ${{ needs.release-please.outputs.version }}
+        REQUIRE_COMPLETE: 'true'
+      run: |
+        python3 - <<'PY'
+        import hashlib,json,os,pathlib,urllib.error,urllib.request
+        version=os.environ['VERSION']
+        expected={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in pathlib.Path('release/dist').iterdir() if p.is_file()}
+        try:
+            with urllib.request.urlopen('https://pypi.org/pypi/launchline/'+version+'/json',timeout=30) as response:
+                published=json.load(response)
+        except urllib.error.HTTPError as error:
+            if error.code != 404 or os.environ.get('REQUIRE_COMPLETE') == 'true': raise
+        else:
+            if published['info']['version'] != version: raise ValueError('Registry version mismatch')
+            for artifact in published['urls']:
+                if artifact['filename'] not in expected: raise ValueError('Unexpected existing distribution')
+                if artifact['digests']['sha256'] != expected[artifact['filename']]: raise ValueError('Conflicting published distribution')
+            if os.environ.get('REQUIRE_COMPLETE') == 'true' and {item['filename'] for item in published['urls']} != set(expected):
+                raise ValueError('Published distributions are incomplete')
+        PY
     name: Pypi
   attest:
     name: Attest tested artifacts
@@ -222,8 +312,8 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      id-token: write # OIDC identity for attestation or trusted PyPI publishing.
-      attestations: write # Store provenance for these same-run build artifacts.
+      id-token: write
+      attestations: write
     steps:
     - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
       with:
@@ -231,4 +321,7 @@ jobs:
         artifact-ids: ${{ needs.build.outputs.artifact-id }}
     - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6
       with:
-        subject-path: release/dist/*
+        subject-path: |
+          release/dist/*
+          release/release-manifest.json
+          release/SHA256SUMS
