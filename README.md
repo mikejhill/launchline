@@ -28,7 +28,7 @@ instead.
 - **Auto-generated starter config** — creates `~/.config/launchline/config.toml`
   on first run if no config exists
 
-|           Fuzzy search            |         Arrow-key navigation          |
+| Fuzzy search                      | Arrow-key navigation                  |
 | :-------------------------------: | :-----------------------------------: |
 | ![Search](docs/images/search.png) | ![Navigate](docs/images/navigate.png) |
 
@@ -90,15 +90,15 @@ Config file format is [TOML](https://toml.io). The file has an optional
 
 ### `[settings]`
 
-| Key               | Type   | Default        | Description                                                       |
-| ----------------- | ------ | -------------- | ----------------------------------------------------------------- |
-| `title`           | string | `"LaunchLine"` | Window/tab title shown while the launcher is active               |
-| `on_exit`         | string | `"restart"`    | Behavior after a launched tool exits: `restart` or `exit`         |
-| `show_exit`       | bool   | `true`         | Show the **Exit** entry (shortcut `0`) in the menu                |
-| `clear_on_launch` | bool   | `true`         | Clear terminal before launching an entry                          |
-| `ghost_text`      | bool   | `true`         | Show the highlighted entry name as an autocomplete hint on prompt |
-| `numeric_trigger` | bool   | `true`         | Pressing a digit immediately launches the matching entry          |
-| `refresh_on_return` | boolean | `false` | Regenerate a dynamic root after returning from a submenu |
+| Key                 | Type    | Default        | Description                                                       |
+| ------------------- | ------- | -------------- | ----------------------------------------------------------------- |
+| `title`             | string  | `"LaunchLine"` | Window/tab title shown while the launcher is active               |
+| `on_exit`           | string  | `"restart"`    | Behavior after a launched tool exits: `restart` or `exit`         |
+| `show_exit`         | bool    | `true`         | Show the **Exit** entry (shortcut `0`) in the menu                |
+| `clear_on_launch`   | bool    | `true`         | Clear terminal before launching an entry                          |
+| `ghost_text`        | bool    | `true`         | Show the highlighted entry name as an autocomplete hint on prompt |
+| `numeric_trigger`   | bool    | `true`         | Pressing a digit immediately launches the matching entry          |
+| `refresh_on_return` | boolean | `false`        | Regenerate a dynamic root after returning from a submenu          |
 
 ### `[[entries]]`
 
@@ -112,8 +112,8 @@ Each `[[entries]]` table defines one launchable tool:
 | `description`       | string          | no       | `""`    | Short description shown next to the name                       |
 | `working_directory` | string          | no       | —       | Working directory for the subprocess                           |
 | `env`               | table           | no       | `{}`    | Extra environment variables (`KEY = "value"`)                  |
-| `id` | string | no | `""` | Stable per-menu identity for refreshed selection |
-| `menu` | table | no | - | Submenu declaration, exclusive with command fields |
+| `id`                | string          | no       | `""`    | Stable per-menu identity for refreshed selection               |
+| `menu`              | table           | no       | ------- | Submenu declaration, exclusive with command fields             |
 
 ### Validation Rules
 
@@ -187,11 +187,14 @@ Set it as the default profile to see the launcher every time you open a terminal
 ## Development
 
 ```sh
-uv sync --group dev
-uv run pytest
-uv run ruff check .
-uv run mypy src
+uv sync --locked --group dev
+uv run poe check-fast
+uv run poe check
+uv run poe release-check
 ```
+
+See [performance validation](docs/performance.md) for gate scope, reproducible
+benchmarks, measured results and regression checks.
 
 ## License
 
@@ -216,10 +219,10 @@ The same table is accepted under `entries.menu.provider`. See the
 [menu lifecycle and provider contract](docs/menus.md) for nesting, caching,
 refresh/back behavior, limits, errors and examples.
 
-| Field | Type | Default | Description |
-| --- | --- | --- | --- |
-| `command` | string | required | Explicit trusted provider executable |
-| `args` | string array | `[]` | Literal argv |
-| `env` | string table | `{}` | Environment overlay |
-| `working_directory` | string | inherited | Provider working directory |
-| `timeout_seconds` | integer | `10` | Deadline from 1 to 300 seconds |
+| Field               | Type         | Default   | Description                          |
+| ------------------- | ------------ | --------- | ------------------------------------ |
+| `command`           | string       | required  | Explicit trusted provider executable |
+| `args`              | string array | `[]`      | Literal argv                         |
+| `env`               | string table | `{}`      | Environment overlay                  |
+| `working_directory` | string       | inherited | Provider working directory           |
+| `timeout_seconds`   | integer      | `10`      | Deadline from 1 to 300 seconds       |

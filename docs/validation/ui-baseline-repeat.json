@@ -1,0 +1,395 @@
+{
+  "started_utc": "2026-10-25T17:11:02.055144+00:00",
+  "python": "3.12.13 (main, Mar 20 2026, 00:36:00) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "cpu_count": 32,
+  "terminal": [
+    100,
+    30
+  ],
+  "method": "9 warm batch means; startup fresh processes with warm OS caches",
+  "ui_sha256": "43bbf7567a40d95c1e1dd75d82ed23e1de6b4a4b229ab29747b8fcc539fab94e",
+  "profile": "         2020601 function calls in 0.212 seconds\n\n   Ordered by: cumulative time\n   List reduced from 41 to 18 due to restriction <18>\n\n   ncalls  tottime  percall  cumtime  percall filename:lineno(function)\n      100    0.004    0.000    0.210    0.002 C:\\Users\\Mike\\Projects\\_meta\\scratch\\codex\\2026-10-25\\task-3\\launchline-perf\\src\\launchline\\ui.py:580(_render)\n      800    0.058    0.000    0.200    0.000 {built-in method builtins.max}\n  1000100    0.097    0.000    0.142    0.000 C:\\Users\\Mike\\Projects\\_meta\\scratch\\codex\\2026-10-25\\task-3\\launchline-perf\\src\\launchline\\ui.py:599(<genexpr>)\n  1003000    0.045    0.000    0.045    0.000 {built-in method builtins.len}\n      400    0.000    0.000    0.004    0.000 C:\\Users\\Mike\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\unittest\\mock.py:1134(__call__)\n      400    0.001    0.000    0.003    0.000 C:\\Users\\Mike\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\unittest\\mock.py:1145(_increment_mock_call)\n      300    0.003    0.000    0.003    0.000 C:\\Users\\Mike\\Projects\\_meta\\scratch\\codex\\2026-10-25\\task-3\\launchline-perf\\src\\launchline\\ui.py:256(_display_list)\n      100    0.000    0.000    0.003    0.000 C:\\Users\\Mike\\Projects\\_meta\\scratch\\codex\\2026-10-25\\task-3\\launchline-perf\\src\\launchline\\ui.py:268(_on_key)\n      200    0.000    0.000    0.003    0.000 C:\\Users\\Mike\\Projects\\_meta\\scratch\\codex\\2026-10-25\\task-3\\launchline-perf\\src\\launchline\\ui.py:547(_max_visible_entries)\n      100    0.000    0.000    0.002    0.000 C:\\Users\\Mike\\Projects\\_meta\\scratch\\codex\\2026-10-25\\task-3\\launchline-perf\\src\\launchline\\ui.py:557(_ensure_highlight_visible)\n      100    0.000    0.000    0.001    0.000 C:\\Users\\Mike\\Projects\\_meta\\scratch\\codex\\2026-10-25\\task-3\\launchline-perf\\src\\launchline\\ui.py:766(_ghost_text)\n     1200    0.001    0.000    0.001    0.000 C:\\Users\\Mike\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\unittest\\mock.py:769(__setattr__)\n      800    0.000    0.000    0.001    0.000 C:\\Users\\Mike\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\unittest\\mock.py:2537(__new__)\n      100    0.000    0.000    0.001    0.000 <frozen ntpath>:351(expanduser)\n      400    0.000    0.000    0.000    0.000 C:\\Users\\Mike\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\unittest\\mock.py:1142(_mock_call)\n     1200    0.000    0.000    0.000    0.000 C:\\Users\\Mike\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\unittest\\mock.py:332(_get)\n      400    0.000    0.000    0.000    0.000 C:\\Users\\Mike\\AppData\\Roaming\\uv\\python\\cpython-3.12-windows-x86_64-none\\Lib\\unittest\\mock.py:1191(_execute_mock_call)\n      200    0.000    0.000    0.000    0.000 <frozen os>:709(__getitem__)\n\n\n",
+  "measurements": {
+    "10/construct": {
+      "samples_us": [
+        3.26,
+        2.99,
+        2.9,
+        2.9,
+        2.89,
+        2.88,
+        2.92,
+        2.89,
+        2.81
+      ],
+      "median_us": 2.9,
+      "min_us": 2.81,
+      "max_us": 3.26,
+      "loops": 10
+    },
+    "10/navigate": {
+      "samples_us": [
+        4.405,
+        3.482,
+        3.595,
+        7.881,
+        3.825,
+        3.694,
+        3.712,
+        3.691,
+        3.383
+      ],
+      "median_us": 3.694,
+      "min_us": 3.383,
+      "max_us": 7.881,
+      "loops": 100
+    },
+    "10/render": {
+      "samples_us": [
+        25.54,
+        24.48,
+        23.916666666666668,
+        23.1,
+        22.846666666666668,
+        23.88,
+        23.32,
+        23.246666666666666,
+        24.013333333333332
+      ],
+      "median_us": 23.88,
+      "min_us": 22.846666666666668,
+      "max_us": 25.54,
+      "loops": 30
+    },
+    "10/search/pt": {
+      "samples_us": [
+        6.02,
+        5.36,
+        5.5,
+        5.02,
+        5.0,
+        4.94,
+        4.98,
+        4.98,
+        4.94
+      ],
+      "median_us": 5.0,
+      "min_us": 4.94,
+      "max_us": 6.02,
+      "loops": 5
+    },
+    "10/search/project": {
+      "samples_us": [
+        3.16,
+        3.1,
+        3.12,
+        3.08,
+        3.02,
+        3.02,
+        3.08,
+        3.04,
+        3.04
+      ],
+      "median_us": 3.08,
+      "min_us": 3.02,
+      "max_us": 3.16,
+      "loops": 5
+    },
+    "10/search/999": {
+      "samples_us": [
+        4.3,
+        3.84,
+        3.98,
+        3.84,
+        3.88,
+        3.8,
+        3.88,
+        4.44,
+        3.88
+      ],
+      "median_us": 3.88,
+      "min_us": 3.8,
+      "max_us": 4.44,
+      "loops": 5
+    },
+    "10/search/zz": {
+      "samples_us": [
+        2.7,
+        2.64,
+        2.6,
+        2.6,
+        2.64,
+        2.68,
+        2.6,
+        2.64,
+        2.62
+      ],
+      "median_us": 2.64,
+      "min_us": 2.6,
+      "max_us": 2.7,
+      "loops": 5
+    },
+    "1000/construct": {
+      "samples_us": [
+        189.7,
+        178.73,
+        181.47,
+        182.38,
+        176.49,
+        172.43,
+        426.0,
+        183.26,
+        173.56
+      ],
+      "median_us": 181.47,
+      "min_us": 172.43,
+      "max_us": 426.0,
+      "loops": 10
+    },
+    "1000/navigate": {
+      "samples_us": [
+        5.245,
+        5.19,
+        5.511,
+        5.286,
+        5.345,
+        5.635,
+        5.437,
+        5.497,
+        5.556
+      ],
+      "median_us": 5.437,
+      "min_us": 5.19,
+      "max_us": 5.635,
+      "loops": 100
+    },
+    "1000/render": {
+      "samples_us": [
+        55.44,
+        53.79333333333334,
+        55.55,
+        54.70666666666666,
+        55.513333333333335,
+        58.09,
+        60.04,
+        57.263333333333335,
+        55.98
+      ],
+      "median_us": 55.55,
+      "min_us": 53.79333333333334,
+      "max_us": 60.04,
+      "loops": 30
+    },
+    "1000/search/pt": {
+      "samples_us": [
+        440.14,
+        427.68,
+        442.98,
+        432.02,
+        434.04,
+        416.9,
+        431.22,
+        419.56,
+        425.16
+      ],
+      "median_us": 431.22,
+      "min_us": 416.9,
+      "max_us": 442.98,
+      "loops": 5
+    },
+    "1000/search/project": {
+      "samples_us": [
+        230.36,
+        227.84,
+        227.66,
+        229.28,
+        252.44,
+        234.32,
+        234.7,
+        235.0,
+        234.78
+      ],
+      "median_us": 234.32,
+      "min_us": 227.66,
+      "max_us": 252.44,
+      "loops": 5
+    },
+    "1000/search/999": {
+      "samples_us": [
+        355.96,
+        356.48,
+        355.18,
+        354.8,
+        354.18,
+        402.58,
+        362.76,
+        357.88,
+        354.84
+      ],
+      "median_us": 355.96,
+      "min_us": 354.18,
+      "max_us": 402.58,
+      "loops": 5
+    },
+    "1000/search/zz": {
+      "samples_us": [
+        218.58,
+        208.76,
+        216.1,
+        204.2,
+        198.06,
+        200.3,
+        216.9,
+        221.22,
+        199.2
+      ],
+      "median_us": 208.76,
+      "min_us": 198.06,
+      "max_us": 221.22,
+      "loops": 5
+    },
+    "10000/construct": {
+      "samples_us": [
+        2237.29,
+        2278.56,
+        2294.25,
+        2320.46,
+        2247.07,
+        2226.83,
+        2748.1,
+        2281.63,
+        2295.86
+      ],
+      "median_us": 2281.63,
+      "min_us": 2226.83,
+      "max_us": 2748.1,
+      "loops": 10
+    },
+    "10000/navigate": {
+      "samples_us": [
+        19.351,
+        19.606,
+        19.504,
+        19.61,
+        18.877,
+        19.2,
+        19.552,
+        18.668,
+        19.219
+      ],
+      "median_us": 19.351,
+      "min_us": 18.668,
+      "max_us": 19.61,
+      "loops": 100
+    },
+    "10000/render": {
+      "samples_us": [
+        340.6033333333333,
+        327.4833333333333,
+        328.1533333333333,
+        332.2333333333333,
+        335.72,
+        339.9266666666667,
+        332.25,
+        341.1566666666667,
+        350.00666666666666
+      ],
+      "median_us": 335.72,
+      "min_us": 327.4833333333333,
+      "max_us": 350.00666666666666,
+      "loops": 30
+    },
+    "10000/search/pt": {
+      "samples_us": [
+        4466.88,
+        5367.04,
+        4520.18,
+        5033.68,
+        4321.56,
+        4433.68,
+        5393.72,
+        4581.84,
+        5179.74
+      ],
+      "median_us": 4581.84,
+      "min_us": 4321.56,
+      "max_us": 5393.72,
+      "loops": 5
+    },
+    "10000/search/project": {
+      "samples_us": [
+        2510.6,
+        2519.54,
+        3224.62,
+        2471.18,
+        3109.38,
+        2489.22,
+        3422.34,
+        2597.14,
+        2484.74
+      ],
+      "median_us": 2519.54,
+      "min_us": 2471.18,
+      "max_us": 3422.34,
+      "loops": 5
+    },
+    "10000/search/999": {
+      "samples_us": [
+        3753.44,
+        3822.58,
+        3774.5,
+        3612.62,
+        3727.04,
+        3911.34,
+        3859.08,
+        3772.74,
+        3743.96
+      ],
+      "median_us": 3772.74,
+      "min_us": 3612.62,
+      "max_us": 3911.34,
+      "loops": 5
+    },
+    "10000/search/zz": {
+      "samples_us": [
+        2168.08,
+        2007.52,
+        2103.92,
+        2083.28,
+        1978.84,
+        2020.44,
+        2021.74,
+        1934.6,
+        2027.62
+      ],
+      "median_us": 2021.74,
+      "min_us": 1934.6,
+      "max_us": 2168.08,
+      "loops": 5
+    }
+  },
+  "import_ms": [
+    194.5882,
+    181.84,
+    189.7517,
+    192.2143,
+    190.7743,
+    196.9343,
+    202.288,
+    199.6189,
+    199.6272
+  ],
+  "help_ms": [
+    205.5846,
+    208.9097,
+    206.3388,
+    211.295,
+    197.673,
+    190.0914,
+    194.7577,
+    840.0385,
+    187.1182
+  ],
+  "finished_utc": "2026-10-25T17:11:07.645973+00:00"
+}

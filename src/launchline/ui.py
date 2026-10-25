@@ -65,7 +65,7 @@ class _UserExitError(Exception):
 # ---------------------------------------------------------------------------
 
 
-@dataclass
+@dataclass(slots=True)
 class _NumberedEntry:
     """An entry paired with its 1-based display number.
 
@@ -146,6 +146,10 @@ class LaunchLineUI:
         self._all_entries: tuple[_NumberedEntry, ...] = tuple(
             _NumberedEntry(number=i + 1, entry=e) for i, e in enumerate(config.entries)
         )
+        self._num_width = len(str(len(self._all_entries))) if self._all_entries else 1
+        self._max_name_len = max(
+            4, max((len(entry.name) for entry in config.entries), default=0)
+        )
         self._exit_entry = _NumberedEntry(number=0, entry=_EXIT_ENTRY)
         self._show_exit = config.show_exit
         self._ghost_text_enabled = config.ghost_text
@@ -159,6 +163,7 @@ class LaunchLineUI:
         self._visible: list[_NumberedEntry] = []
         self._exit_visible: bool = True
         self._viewport_offset: int = 0
+        self._displayed: list[_NumberedEntry] | None = None
 
     # -- public API ---------------------------------------------------------
 
@@ -250,6 +255,7 @@ class LaunchLineUI:
         self._visible = list(self._all_entries)
         self._exit_visible = self._show_exit
         self._viewport_offset = 0
+        self._displayed = None
 
     # -- display list (visible + exit) -------------------------------------
 
@@ -259,9 +265,11 @@ class LaunchLineUI:
         The exit entry is always appended at the end when it matches the
         current filter.
         """
-        if self._exit_visible:
-            return [*self._visible, self._exit_entry]
-        return list(self._visible)
+        if self._displayed is None:
+            self._displayed = list(self._visible)
+            if self._exit_visible:
+                self._displayed.append(self._exit_entry)
+        return self._displayed
 
     # -- key handling -------------------------------------------------------
 
@@ -541,6 +549,7 @@ class LaunchLineUI:
 
         self._highlight_idx = 0
         self._viewport_offset = 0
+        self._displayed = None
 
     # -- viewport -----------------------------------------------------------
 
@@ -594,12 +603,8 @@ class LaunchLineUI:
         total_items = len(dl)
         viewport = dl[self._viewport_offset : self._viewport_offset + max_vis]
 
-        num_width = len(str(len(self._all_entries))) if self._all_entries else 1
-        max_name_len = max(
-            (len(ne.entry.name) for ne in self._all_entries),
-            default=0,
-        )
-        max_name_len = max(max_name_len, len("Exit"))
+        num_width = self._num_width
+        max_name_len = self._max_name_len
 
         sep = f"{self._GRAY}{'\u2500' * tw}{self._RESET}"
 
