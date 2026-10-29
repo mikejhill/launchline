@@ -249,6 +249,9 @@ Set it as the default profile to see the launcher every time you open a terminal
 
 ## Development
 
+Mutation campaigns run asynchronously on the default branch. See
+[mutation policy, results and durable alerts](docs/mutation-testing.md).
+
 ```sh
 uv sync --locked --group dev
 uv run poe check-fast

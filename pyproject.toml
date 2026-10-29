@@ -133,7 +133,8 @@ test-fast = "pytest -q -o addopts= --ignore=tests/test_terminal_e2e.py --ignore=
 check-fast = ["format-check", "lint", "typecheck", "test-fast"]
 benchmark-ui = "python scripts/benchmark_ui.py .tmp/ui-current.json"
 build = "uv build"
-release-check = ["check", "build", "package-smoke", "mutation", "mutation-menus"]
+artifact-check = "python scripts/release_artifacts.py --check-build"
+release-check = ["check", "build", "artifact-check", "package-smoke"]
 
 [tool.poe.tasks.package-smoke]
 cmd = "python scripts/package_smoke.py"
