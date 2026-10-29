@@ -1,0 +1,41 @@
+{
+  "runtime": "Python",
+  "exit_status": 0,
+  "source_commit": "b3766a3effa3851708d8ba416fdb0ddb3c4f7973",
+  "command": [
+    "C:\\Users\\Mike\\Projects\\_meta\\scratch\\codex\\2026-10-28\\task-2\\launchline\\.venv\\Scripts\\python.exe",
+    "-m",
+    "launchline",
+    "--config",
+    "examples/menu-demo.toml"
+  ],
+  "executable_sha256": "396db1f5bccbf1c088cb94bd957abb5c31034914340292a7833245abd7d6917d",
+  "terminal": "Windows ConPTY via pywinpty",
+  "dimensions": [
+    100,
+    24
+  ],
+  "input": [
+    "1 (static submenu)",
+    "Escape (Back)",
+    "2 (provider)",
+    "0 (Exit)"
+  ],
+  "capture_python": "3.12.13 (main, Mar 20 2026, 00:36:00) [MSC v.1944 64 bit (AMD64)]",
+  "dependencies": {
+    "pywinpty": "3.1.0",
+    "pyte": "0.8.2",
+    "Pillow": "13.0.0"
+  },
+  "rendering": "Actual terminal text cells, monochrome; ANSI colors omitted",
+  "files": {
+    "dynamic.ansi": "e58fa83821d55df0ca1d3335aedd6bad9a2d3198bc83e9dc75d5a41e93177533",
+    "dynamic.txt": "fcba13a19082cc28979e1b8f3b131979817e123733d52805837516e3ff8fdb20",
+    "nested.ansi": "c50eb26add1cdc83d47b4a7d24940a1def441d728117f3851ece0c2052c7966e",
+    "nested.txt": "d56393dd45ea87c90584b3b362579e96794c919f5b3d798d6dd2bc88d4010af2",
+    "returned.ansi": "454589d3422b43cb80fa4d09f177e40c776eb968834a4ffb19ad3fbae013399b",
+    "returned.txt": "c3a86c3b26f63b7a2d98dcd2099f11a075cfc24bf73321153b6968ffeec4e5b3",
+    "root.ansi": "c63bd5e845837e753f01450dbf4418b1143efca7125b1dc958e7766548ab6bb2",
+    "root.txt": "c3a86c3b26f63b7a2d98dcd2099f11a075cfc24bf73321153b6968ffeec4e5b3"
+  }
+}
