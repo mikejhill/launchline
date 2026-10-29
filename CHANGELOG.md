@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3](https://github.com/mikejhill/launchline/compare/v0.4.2...v0.4.3) (2026-10-29)
+
+
+### Fixed
+
+* validate uv build sidecars before release ([#9](https://github.com/mikejhill/launchline/issues/9)) ([7bf6845](https://github.com/mikejhill/launchline/commit/7bf68458d607a7b8f8d558674cdd2c5f5cfcc125))
+
 ## [0.4.2](https://github.com/mikejhill/launchline/compare/v0.4.1...v0.4.2) (2026-10-29)
 
 Unpublished release attempt: the build stopped before registry upload because
