@@ -1,7 +1,7 @@
 {
   "runtime": "Python",
   "exit_status": 0,
-  "source_commit": "b3766a3effa3851708d8ba416fdb0ddb3c4f7973",
+  "source_commit": "d74a6aa53e7503c6381fa3351077a01ba074b2b5",
   "command": [
     "C:\\Users\\Mike\\Projects\\_meta\\scratch\\codex\\2026-10-28\\task-2\\launchline\\.venv\\Scripts\\python.exe",
     "-m",
@@ -12,13 +12,20 @@
   "executable_sha256": "396db1f5bccbf1c088cb94bd957abb5c31034914340292a7833245abd7d6917d",
   "terminal": "Windows ConPTY via pywinpty",
   "dimensions": [
-    100,
-    24
+    80,
+    22
   ],
+  "fixture": "Disposable home/projects/my-app with committed example config/provider copied unchanged",
   "input": [
-    "1 (static submenu)",
+    "type p",
+    "type o",
+    "type w",
+    "Backspace x3",
+    "Down x3",
+    "7 (Development submenu)",
     "Escape (Back)",
-    "2 (provider)",
+    "8 (Projects provider)",
+    "Ctrl+R (Refresh provider)",
     "0 (Exit)"
   ],
   "capture_python": "3.12.13 (main, Mar 20 2026, 00:36:00) [MSC v.1944 64 bit (AMD64)]",
@@ -27,15 +34,47 @@
     "pyte": "0.8.2",
     "Pillow": "13.0.0"
   },
-  "rendering": "Actual terminal text cells, monochrome; ANSI colors omitted",
+  "rendering": "Original generate_screenshots.py CGA palette, Cascadia Mono 15px, ANSI foreground/background/reverse/bold and terminal chrome; all terminal content from this runtime",
+  "capture_sources": {
+    "examples/menu-demo.toml": "f043bbfa2e515fbcf5bd3eb2501a6ccb1481eca1bdcc455bda66c2a70ef1661c",
+    "examples/menu_provider.py": "59cb82cb9147ef1b241caebb9c49f0b1b4ea46bc6914017411f3a5a256260a8f",
+    "tools/capture_menus.py": "fbd2e1fec5cca6ba407af63ce15936d0116f30fcbd9b2e2e668a93674949a117",
+    "tools/terminal_render.py": "f5f3a7932e3d1403b2624148ea398d2266242840f6a1ede57e75cfbe811cea13"
+  },
   "files": {
-    "dynamic.ansi": "e58fa83821d55df0ca1d3335aedd6bad9a2d3198bc83e9dc75d5a41e93177533",
-    "dynamic.txt": "fcba13a19082cc28979e1b8f3b131979817e123733d52805837516e3ff8fdb20",
-    "nested.ansi": "c50eb26add1cdc83d47b4a7d24940a1def441d728117f3851ece0c2052c7966e",
-    "nested.txt": "d56393dd45ea87c90584b3b362579e96794c919f5b3d798d6dd2bc88d4010af2",
-    "returned.ansi": "454589d3422b43cb80fa4d09f177e40c776eb968834a4ffb19ad3fbae013399b",
-    "returned.txt": "c3a86c3b26f63b7a2d98dcd2099f11a075cfc24bf73321153b6968ffeec4e5b3",
-    "root.ansi": "c63bd5e845837e753f01450dbf4418b1143efca7125b1dc958e7766548ab6bb2",
-    "root.txt": "c3a86c3b26f63b7a2d98dcd2099f11a075cfc24bf73321153b6968ffeec4e5b3"
+    "cleared.ansi": "d73fdd7861511b89f0503a4493e01fd2086c1c93684dc5f4c9009cc5a3af9aa2",
+    "cleared.txt": "49f60e31944b414ce4cb45adcff71fa3103db444a992355216e72757f47ab94f",
+    "dynamic.ansi": "a3d473106484596713d4021a05c3e88b09c64a9f01a399570771a980220a3a2c",
+    "dynamic.txt": "b98c66f1ef5eba0ccbfb7c4acc47438ad444f1dbd6fb0be10b9f47be1db9686e",
+    "navigation.ansi": "4ca5f2c3f3aecbe0333aeda026a806a9d167807871aebb26dfd4405bb8fc953e",
+    "navigation.txt": "131c1b8ffc190933f722dddc6fbb6d75a8ed86af67ce7083ba4630f10d3279b2",
+    "nested.ansi": "3b0d736224b1dface3ccd9ea8cfb0e42a973bae0cd2249148adcc54e8bab58ca",
+    "nested.txt": "062c631f43d8a3bb1729eed06dc05cfd76e16dc7e2ede163f9f90a8caf11d234",
+    "refreshed.ansi": "a3cdbcc5d4d31ebe10195c6a182ed12593124a84a18ce56c7b4fb6b8f3195ccf",
+    "refreshed.txt": "b98c66f1ef5eba0ccbfb7c4acc47438ad444f1dbd6fb0be10b9f47be1db9686e",
+    "returned.ansi": "72f17049964d0d51d943a6e1255579febea53441b4236d27ecc2001b5e9739f2",
+    "returned.txt": "131c1b8ffc190933f722dddc6fbb6d75a8ed86af67ce7083ba4630f10d3279b2",
+    "root.ansi": "7efe1f904edf273cd0b64cab092857642986e8841991e2f2a9b3934df0a1e35f",
+    "root.txt": "49f60e31944b414ce4cb45adcff71fa3103db444a992355216e72757f47ab94f",
+    "search-p.ansi": "826ef71eeafb40eed79b672147d880d1037ff34bbb725753af67238dee3f6f57",
+    "search-p.txt": "0327f538a7ba324642da6e5fe1fbdeffa332b3f3852b772ed436bbbe23d2835b",
+    "search-po.ansi": "58a8a54a04e39eb30340b2327db2ceb980b090ee2bf3ae4cae89a6bb9c07324b",
+    "search-po.txt": "cbd799c615590e7685515e036fde2a099a93001065062425d0e055e6f3e38688",
+    "search-pow.ansi": "838f672522fc7c12773f3198cd264b50e7d08ba07c7020bc4a7e2224a6f1c820",
+    "search-pow.txt": "c6c9436573b37c57e83928a60032f61174353d12d11f6463390d222386e9b1de"
+  },
+  "assets": {
+    "cleared.png": "5944ecc80a802d0fe03aac19f6d698d5f3bd358d64e495634d05b9558b66cf51",
+    "dynamic.png": "72c2d47b8f3138d8c115b9687489436e5022cd4d41415343d9db5c8681607592",
+    "launcher.gif": "143ba2a5e2267422e6db424af7240b175e8676e97e69c87fa5eba0eb4b444428",
+    "menus.gif": "d90bf0f3f06684632989093c403f04f782191521b137281d03382c65a09f2613",
+    "navigation.png": "421641915a662a5325df85f2b636f1ce69501ae853e14d89f79acd6a94af7390",
+    "nested.png": "49a575cf570cea8ecece897f7bd269eec14342811a793c2ed48a54c98315172f",
+    "refreshed.png": "72c2d47b8f3138d8c115b9687489436e5022cd4d41415343d9db5c8681607592",
+    "returned.png": "421641915a662a5325df85f2b636f1ce69501ae853e14d89f79acd6a94af7390",
+    "root.png": "5944ecc80a802d0fe03aac19f6d698d5f3bd358d64e495634d05b9558b66cf51",
+    "search-p.png": "9544f5f36d88895130dea9b56b19eab1a39b2ca44e55324e366af29f99e6fe11",
+    "search-po.png": "fdb4d40edbae8d8de49ae2f52d2b3b79555aab37de27e26e0b30137e1c9ccfcb",
+    "search-pow.png": "a1f768421a95ed9d58928834afc917b7270c13b6c0a0b826d4d18deacc37dbf7"
   }
 }

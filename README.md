@@ -9,7 +9,7 @@ A lightweight terminal launcher for interactive CLI tools. Define your frequentl
 used commands in a TOML config file, then pick them from a fuzzy-searchable menu
 instead of remembering flags and paths.
 
-![LaunchLine Python: root, static submenu and dynamic provider](docs/images/menus.gif)
+![LaunchLine Python: colored launcher, fuzzy search and keyboard navigation](docs/images/launcher.gif)
 
 Captured from the Python application in its own isolated terminal.
 [Capture procedure and raw output](docs/images/captures/README.md).
@@ -32,9 +32,15 @@ instead.
 - **Auto-generated starter config** — creates `~/.config/launchline/config.toml`
   on first run if no config exists
 
-| Static submenu | Dynamic provider |
-| :---: | :---: |
-| ![Development submenu](docs/images/nested.png) | ![Generated project tools](docs/images/dynamic.png) |
+### Nested and generated menus
+
+![Static submenu, Back navigation and generated project tools](docs/images/menus.gif)
+
+[Static submenu](docs/images/nested.png) · [Dynamic provider](docs/images/dynamic.png) ·
+[Visual comparison and capture evidence](docs/images/captures/visual-review.md)
+
+Images open at full resolution; each animation uses a single column to retain
+readability on narrower screens.
 
 ## Installation
 
