@@ -128,10 +128,24 @@ class ProcessTree:
                 self._kernel.CloseHandle(self._job)
                 self._job = None
             return
-        try:
-            os.killpg(self._process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            logger.debug("Provider process group already exited")
+        for attempt in range(10):
+            try:
+                os.killpg(self._process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                logger.debug("Provider process group already exited")
+                return
+            except PermissionError:
+                # Darwin can retain an all-zombie group briefly: killpg filters
+                # zombies out, then reports EPERM when no live member was found.
+                # The leader may not yet be waitable when that transition starts.
+                # Reap it when possible, without treating persistent EPERM as a
+                # successful cleanup or relaxing the process-group boundary.
+                if sys.platform != "darwin" or attempt == 9:
+                    raise
+                self._process.poll()
+                time.sleep(0.01)
+            else:
+                return
 
 
 class _OutputCapture:
