@@ -47,9 +47,7 @@ def main() -> None:
     input_events = []
     cols, rows = 80, 22
     raw = ""
-    with tempfile.TemporaryDirectory(
-        prefix=f"LL-{args.runtime[0]}-"
-    ) as fixture:
+    with tempfile.TemporaryDirectory(prefix=f"LL-{args.runtime[0]}-") as fixture:
         home = Path(fixture)
         project = home / "projects/my-app"
         project.mkdir(parents=True)
@@ -169,7 +167,17 @@ def main() -> None:
         durations=[1600, 350, 350, 1200, 650, 1600],
     )
     renderer.render_gif(
-        [grids[n] for n in ["root", "nested", "returned", "dynamic", "refreshed", "provider-returned"]],
+        [
+            grids[n]
+            for n in [
+                "root",
+                "nested",
+                "returned",
+                "dynamic",
+                "refreshed",
+                "provider-returned",
+            ]
+        ],
         images / "menus.gif",
         durations=[1600, 2200, 800, 2200, 1200, 1400],
     )
@@ -178,6 +186,7 @@ def main() -> None:
         "exit_status": process.exitstatus,
         "source_commit": source,
         "comparison_baseline": "d74a6aa53e7503c6381fa3351077a01ba074b2b5",
+        "navigation_baseline": "d0255d4f4c5781eb1118a96a9022e82b003cf0cf",
         "command": command,
         "executable_sha256": hashlib.sha256(executable.read_bytes()).hexdigest(),
         "terminal": "Windows ConPTY via pywinpty",
