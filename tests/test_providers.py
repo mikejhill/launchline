@@ -5,11 +5,70 @@ from __future__ import annotations
 import json
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from launchline.config import EntryConfig, ProviderConfig
-from launchline.providers import MenuProvider, ProviderError
+from launchline.providers import MenuProvider, ProcessTree, ProviderError
+
+
+class TestProcessTreeCleanup:
+    """Keep transient Darwin teardown distinct from real permission failures."""
+
+    def test_exited_darwin_group_can_disappear_after_eperm(self) -> None:
+        """An all-zombie group must not replace a provider's real result/error."""
+        process = MagicMock()
+        process.poll.return_value = 0
+        with (
+            patch("launchline.providers.sys") as platform,
+            patch("launchline.providers.signal.SIGKILL", 9, create=True),
+            patch("launchline.providers.os.killpg", create=True) as kill_group,
+            patch("launchline.providers.time.sleep"),
+        ):
+            platform.platform = "darwin"
+            kill_group.side_effect = [
+                PermissionError(1, "zombies"),
+                ProcessLookupError(),
+            ]
+            ProcessTree(process).close()
+        assert kill_group.call_count == 2
+
+    @pytest.mark.parametrize(
+        ("platform_name", "returncode"), [("darwin", None), ("linux", 0)]
+    )
+    def test_real_permission_failure_is_preserved(
+        self, platform_name: str, returncode: int | None
+    ) -> None:
+        """A live child or a different OS must retain the permission failure."""
+        process = MagicMock()
+        process.poll.return_value = returncode
+        with (
+            patch("launchline.providers.sys") as platform,
+            patch("launchline.providers.signal.SIGKILL", 9, create=True),
+            patch("launchline.providers.os.killpg", create=True) as kill_group,
+        ):
+            platform.platform = platform_name
+            kill_group.side_effect = PermissionError(1, "denied")
+            with pytest.raises(PermissionError):
+                ProcessTree(process).close()
+        assert kill_group.call_count == 1
+
+    def test_persistent_darwin_permission_failure_is_bounded(self) -> None:
+        """An exited leader does not authorize ignoring inaccessible descendants."""
+        process = MagicMock()
+        process.poll.return_value = 0
+        with (
+            patch("launchline.providers.sys") as platform,
+            patch("launchline.providers.signal.SIGKILL", 9, create=True),
+            patch("launchline.providers.os.killpg", create=True) as kill_group,
+            patch("launchline.providers.time.sleep"),
+        ):
+            platform.platform = "darwin"
+            kill_group.side_effect = PermissionError(1, "persistent")
+            with pytest.raises(PermissionError):
+                ProcessTree(process).close()
+        assert kill_group.call_count == 10
 
 
 class TestMenuProvider:
@@ -86,6 +145,14 @@ class TestMenuProvider:
         assert result == (), (
             "Empty snapshots must remain distinguishable from provider errors"
         )
+
+    @pytest.mark.skipif(sys.platform != "darwin", reason="Darwin process-group race")
+    def test_repeated_oversized_providers_preserve_the_limit_error(self) -> None:
+        """Exercise native fast-exit cleanup repeatedly on each macOS CI version."""
+        code = "import sys; sys.stdout.write('x' * 1100000)"
+        for _ in range(20):
+            with pytest.raises(ProviderError, match="exceeds"):
+                MenuProvider().resolve(self._config(code), depth=0)
 
     def test_nonexistent_and_implicit_batch_provider_fail_cleanly(self) -> None:
         """Report missing executables and unsupported implicit batch files."""
