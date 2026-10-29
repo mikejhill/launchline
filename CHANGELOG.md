@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4](https://github.com/mikejhill/launchline/compare/v0.4.3...v0.4.4) (2026-10-29)
+
+
+### Fixed
+
+* reserve zero for Back in every submenu ([#14](https://github.com/mikejhill/launchline/issues/14)) ([0ec1656](https://github.com/mikejhill/launchline/commit/0ec1656eb12b161a52ccac4a0a9b3c209acf7e56))
+
 ## [0.4.3](https://github.com/mikejhill/launchline/compare/v0.4.2...v0.4.3) (2026-10-29)
 
 
