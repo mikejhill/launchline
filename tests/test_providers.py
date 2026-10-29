@@ -151,8 +151,13 @@ class TestMenuProvider:
         """Exercise native fast-exit cleanup repeatedly on each macOS CI version."""
         code = "import sys; sys.stdout.write('x' * 1100000)"
         for _ in range(20):
-            with pytest.raises(ProviderError, match="exceeds"):
+            try:
                 MenuProvider().resolve(self._config(code), depth=0)
+            except ProviderError as error:
+                if "exceeds" not in str(error):
+                    raise
+            else:
+                pytest.fail("Oversized provider unexpectedly succeeded")
 
     def test_nonexistent_and_implicit_batch_provider_fail_cleanly(self) -> None:
         """Report missing executables and unsupported implicit batch files."""
