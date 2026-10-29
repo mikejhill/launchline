@@ -22,7 +22,9 @@ class TestReleaseArtifacts:
     """Execute the actual release helper against disposable distribution fixtures."""
 
     @staticmethod
-    def _fixture(root: Path, metadata_version: str = "0.4.1") -> None:
+    def _fixture(
+        root: Path, metadata_version: str = "0.4.1", build_version: str = "0.4.1"
+    ) -> None:
         """Create minimal archives without installing or executing package code."""
         (root / "dist").mkdir()
         (root / ".release-please-manifest.json").write_text('{".":"0.4.1"}')
@@ -32,38 +34,50 @@ class TestReleaseArtifacts:
         )
         metadata = f"Name: launchline\nVersion: {metadata_version}\n".encode()
         with zipfile.ZipFile(
-            root / "dist/launchline-0.4.1-py3-none-any.whl", "w"
+            root / f"dist/launchline-{build_version}-py3-none-any.whl", "w"
         ) as wheel:
-            wheel.writestr("launchline-0.4.1.dist-info/METADATA", metadata)
-        with tarfile.open(root / "dist/launchline-0.4.1.tar.gz", "w:gz") as sdist:
-            member = tarfile.TarInfo("launchline-0.4.1/PKG-INFO")
+            wheel.writestr(f"launchline-{build_version}.dist-info/METADATA", metadata)
+        with tarfile.open(
+            root / f"dist/launchline-{build_version}.tar.gz", "w:gz"
+        ) as sdist:
+            member = tarfile.TarInfo(f"launchline-{build_version}/PKG-INFO")
             member.size = len(metadata)
             sdist.addfile(member, io.BytesIO(metadata))
 
     @staticmethod
     def _run(
-        root: Path, version: str = "0.4.1", revision: str = "a" * 40
+        root: Path,
+        version: str = "0.4.1",
+        revision: str = "a" * 40,
+        *,
+        check_build: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         """Run the same CLI as the build job with no remote service access."""
         script = Path(__file__).resolve().parents[1] / "scripts/release_artifacts.py"
         return subprocess.run(
-            [sys.executable, str(script), version, revision],
+            [sys.executable, str(script)]
+            + (["--check-build"] if check_build else [version, revision]),
             cwd=root,
             capture_output=True,
             text=True,
             check=False,
         )
 
+    @pytest.mark.parametrize("marker", [None, b"*", b"*\n", b"*\r\n"])
     def test_matching_archives_emit_source_hashes_and_reviewed_notes(
-        self, tmp_path: Path
+        self, tmp_path: Path, marker: bytes | None
     ) -> None:
         """Only reviewed versioned artifacts become the release evidence."""
         self._fixture(tmp_path)
+        if marker is not None:
+            (tmp_path / "dist/.gitignore").write_bytes(marker)
         result = self._run(tmp_path)
         assert result.returncode == 0, result.stderr
         manifest = json.loads((tmp_path / "release-manifest.json").read_text())
         assert manifest["version"] == "0.4.1"
         assert manifest["source_sha"] == "a" * 40
+        assert len(manifest["sha256"]) == 2
+        assert ".gitignore" not in manifest["sha256"]
         for name, digest in manifest["sha256"].items():
             assert (
                 digest
@@ -76,7 +90,17 @@ class TestReleaseArtifacts:
 
     @pytest.mark.parametrize(
         "fault",
-        ["version", "revision", "manifest", "changelog", "metadata", "extra-file"],
+        [
+            "version",
+            "revision",
+            "manifest",
+            "changelog",
+            "metadata",
+            "extra-file",
+            "hidden-file",
+            "invalid-marker",
+            "directory-marker",
+        ],
     )
     def test_inconsistent_release_is_rejected_before_evidence(
         self, tmp_path: Path, fault: str
@@ -89,6 +113,12 @@ class TestReleaseArtifacts:
             (tmp_path / "CHANGELOG.md").write_text("# Changelog\n")
         elif fault == "extra-file":
             (tmp_path / "dist/unrelated.txt").write_text("unrelated")
+        elif fault == "hidden-file":
+            (tmp_path / "dist/.unexpected").write_text("unexpected")
+        elif fault == "invalid-marker":
+            (tmp_path / "dist/.gitignore").write_text("unexpected")
+        elif fault == "directory-marker":
+            (tmp_path / "dist/.gitignore").mkdir()
         result = self._run(
             tmp_path,
             "0.4.1-rc1" if fault == "version" else "0.4.1",
@@ -96,6 +126,29 @@ class TestReleaseArtifacts:
         )
         assert result.returncode != 0
         assert not (tmp_path / "release-manifest.json").exists()
+
+    def test_development_build_preflight_does_not_authorize_a_release(
+        self, tmp_path: Path
+    ) -> None:
+        """Real CI builds can validate layout before a stable version is reviewed."""
+        version = "0.4.3.dev1"
+        self._fixture(tmp_path, version, version)
+        (tmp_path / "dist/.gitignore").write_bytes(b"*")
+        result = self._run(tmp_path, check_build=True)
+        assert result.returncode == 0, result.stderr
+        assert not (tmp_path / "release-manifest.json").exists()
+        assert self._run(tmp_path, version).returncode != 0
+
+    def test_marker_symlink_is_rejected(self, tmp_path: Path) -> None:
+        """An accepted filename cannot hide a different source through a symlink."""
+        self._fixture(tmp_path)
+        target = tmp_path / "marker-target"
+        target.write_bytes(b"*")
+        try:
+            (tmp_path / "dist/.gitignore").symlink_to(target)
+        except OSError:
+            pytest.skip("Host does not allow disposable symlink fixtures")
+        assert self._run(tmp_path).returncode != 0
 
 
 class TestRegistryRetry:

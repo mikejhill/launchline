@@ -75,6 +75,10 @@ creating the tag. Investigate failed version/tag jobs before retrying. Never
 manufacture a patch bump, move a tag or rebuild different source under that
 version to repair publication.
 
+A source or build-tooling defect requires a reviewed fix and a new version.
+Preserve the failed immutable tag/draft rather than publishing changed source
+under it. This differs from a transport retry of the original tested bytes.
+
 GitHub publication accepts a tag only at the expected commit. It checks all
 existing asset hashes before uploading missing files, downloads legacy assets
 whose API digest is absent, and rejects different bytes. It never uses
@@ -97,6 +101,10 @@ do not substitute rebuilt packages. Existing notes are preserved.
 ## Validation and existing releases
 
 Run `uv run poe check-fast`, then `uv run poe check` and the existing release gate.
+CI also runs `scripts/release_artifacts.py --check-build` on the real uv output.
+Only the wheel, sdist and uv's known `*`-only `.gitignore` sidecar are accepted;
+the sidecar is excluded from release hashes. Unknown files, malformed markers,
+directories, symlinks and mismatched package metadata still fail closed.
 Offline tests execute the actual publisher shell with intercepted GitHub calls
 and real jq queries: ancestry/tag conflicts, complete/partial retry, asset hash
 conflicts and legacy download failures. Other tests cover reviewed versions,
