@@ -70,7 +70,7 @@ class _NumberedEntry:
     """An entry paired with its 1-based display number.
 
     Attributes:
-        number: Ordinal display number (1-based for entries, 0 for exit).
+        number: Ordinal display number (1-based for entries, 0 for Back or Exit).
         entry: The underlying configuration entry.
     """
 
@@ -80,6 +80,9 @@ class _NumberedEntry:
 
 _EXIT_ENTRY = EntryConfig(name="Exit", command="", description="Close the launcher")
 """Sentinel entry representing the 'Exit' option in the launcher menu."""
+
+_BACK_ENTRY = EntryConfig(name="Back", command="", description="Return to parent menu")
+"""Submenu zero control; never a subprocess or global exit."""
 
 
 # ---------------------------------------------------------------------------
@@ -117,6 +120,7 @@ class LaunchLineUI:
         self,
         config: LaunchLineConfig,
         *,
+        submenu: bool = False,
         _key_reader: Callable[[], str] | None = None,
     ) -> None:
         """Initialise the UI with a launcher configuration.
@@ -124,11 +128,13 @@ class LaunchLineUI:
         Args:
             config: Application configuration containing the entries to
                 display and behavioural settings.
+            submenu: Reserve zero for Back, regardless of root exit settings.
             _key_reader: Optional override for the key-reading callable.
                 Defaults to :meth:`KeyReader.read_key` with a 50 ms
                 timeout.  Primarily used for testing.
         """
         self._config = config
+        self._submenu = submenu
         self._navigation = False
         self._intent = MenuIntent.EXIT
         self._menu_state: ViewState | None = None
@@ -150,8 +156,10 @@ class LaunchLineUI:
         self._max_name_len = max(
             4, max((len(entry.name) for entry in config.entries), default=0)
         )
-        self._exit_entry = _NumberedEntry(number=0, entry=_EXIT_ENTRY)
-        self._show_exit = config.show_exit
+        self._exit_entry = _NumberedEntry(
+            number=0, entry=_BACK_ENTRY if submenu else _EXIT_ENTRY
+        )
+        self._show_exit = submenu or config.show_exit
         self._ghost_text_enabled = config.ghost_text
         self._numeric_trigger = config.numeric_trigger
         self._key_reader = _key_reader or (lambda: KeyReader.read_key(timeout=0.05))
@@ -199,7 +207,9 @@ class LaunchLineUI:
                 entry = self._on_key(key)
                 dirty = True
                 if entry is not None:
-                    if entry is _EXIT_ENTRY:
+                    if entry is self._exit_entry.entry:
+                        if self._submenu:
+                            self._intent = MenuIntent.BACK
                         return None
                     return entry
         except (EOFError, KeyboardInterrupt, _UserExitError):
@@ -260,9 +270,9 @@ class LaunchLineUI:
     # -- display list (visible + exit) -------------------------------------
 
     def _display_list(self) -> list[_NumberedEntry]:
-        """Return the full display list: visible entries plus exit (if shown).
+        """Return visible entries plus the contextual zero control (if shown).
 
-        The exit entry is always appended at the end when it matches the
+        The zero entry is always appended at the end when it matches the
         current filter.
         """
         if self._displayed is None:
@@ -449,8 +459,8 @@ class LaunchLineUI:
         """Handle a printable character input.
 
         Supports immediate numeric selection (single-digit when ≤9
-        entries and ``numeric_trigger`` is enabled), '0' for
-        exit, and appending to the fuzzy query.  Triggers auto-launch
+        entries and ``numeric_trigger`` is enabled), '0' for Back in submenus
+        or configured Exit at root, and appending to the fuzzy query. Auto-launches
         when a numeric query narrows to one match.
 
         Args:
@@ -460,7 +470,10 @@ class LaunchLineUI:
             An ``EntryConfig`` to launch immediately, or ``None`` to
             continue the input loop.
         """
-        # "0" with no active query selects exit (when exit is shown)
+        # Zero always returns one level from a submenu, including during search.
+        if self._submenu and ch == "0":
+            return _BACK_ENTRY
+        # Root zero preserves the existing configurable exit shortcut.
         if not self._query and ch == "0" and self._show_exit:
             return _EXIT_ENTRY
 

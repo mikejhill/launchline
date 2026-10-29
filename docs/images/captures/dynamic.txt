@@ -9,8 +9,8 @@
   ▸ 1  Git status    Inspect the current repository
     2  Git history   Recent commits
     3  Refresh menu  Regenerate this menu (Ctrl+R)
-    4  Back          Return to parent menu
-    0  Exit          Close the launcher
+    0  Back          Return to parent menu
+
 
 
 

@@ -226,15 +226,12 @@ class MenuApplication:
             except KeyboardInterrupt as error:
                 raise SystemExit(130) from error
             frame = self._session.current
-            back = EntryConfig("Back", "", description="Return to parent menu")
             refresh = EntryConfig(
                 "Retry provider" if frame.error is not None else "Refresh menu",
                 "",
                 description="Regenerate this menu (Ctrl+R)",
             )
-            controls = ((refresh,) if frame.declaration.provider else ()) + (
-                (back,) if self._session.depth > 1 else ()
-            )
+            controls = (refresh,) if frame.declaration.provider else ()
             status = (
                 " [provider failed]"
                 if frame.error is not None
@@ -247,7 +244,7 @@ class MenuApplication:
                 entries=frame.entries + controls,
                 title=self._session.title + status,
             )
-            ui = LaunchLineUI(visible)
+            ui = LaunchLineUI(visible, submenu=self._session.depth > 1)
             choice, frame.view = ui.choose(frame.view)
             if choice.intent is MenuIntent.REFRESH or choice.entry is refresh:
                 try:
@@ -255,7 +252,7 @@ class MenuApplication:
                 except KeyboardInterrupt as error:
                     raise SystemExit(130) from error
                 continue
-            if choice.intent is MenuIntent.BACK or choice.entry is back:
+            if choice.intent is MenuIntent.BACK:
                 try:
                     if not self._session.back():
                         return

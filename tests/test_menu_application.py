@@ -30,6 +30,8 @@ class ScriptedUI:
         action = self._script.actions.popleft()
         if isinstance(action, MenuIntent):
             return MenuChoice(action), ViewState()
+        if action == "Back":
+            return MenuChoice(MenuIntent.BACK), ViewState()
         selected = next(entry for entry in self._config.entries if entry.name == action)
         return MenuChoice(MenuIntent.ENTRY, selected), ViewState(selected=selected)
 
@@ -41,10 +43,12 @@ class MenuScript:
         """Store choices in a per-test queue."""
         self.actions = deque(actions)
         self.views: list[LaunchLineConfig] = []
+        self.submenus: list[bool] = []
 
-    def create(self, config: LaunchLineConfig) -> ScriptedUI:
+    def create(self, config: LaunchLineConfig, *, submenu: bool) -> ScriptedUI:
         """Capture production-generated snapshots before supplying a UI boundary."""
         self.views.append(config)
+        self.submenus.append(submenu)
         return ScriptedUI(self, config)
 
 
@@ -107,6 +111,10 @@ class TestMenuApplication:
             "LaunchLine / Child",
             "LaunchLine",
         ], "Back must restore the parent's view"
+        assert script.submenus == [False, True, False]
+        assert all(
+            entry.name != "Back" for view in script.views for entry in view.entries
+        ), "Back must be the zero control, never a positive-numbered entry"
 
     @pytest.mark.parametrize("policy", ["restart", "exit"])
     def test_launch_failure_follows_global_exit_policy(self, policy: str) -> None:
