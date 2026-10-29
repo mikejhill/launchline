@@ -1,5 +1,13 @@
 # Reviewed releases
 
+After upload, PyPI readback retries an absent version or incomplete file list up
+to 12 times, with 10 seconds between reads and a 30-second request timeout.
+Version, filename and SHA256 conflicts fail immediately. Exhausting the bound
+still fails publication verification; it never rebuilds, retags or overwrites a
+distribution. Use the existing GitHub-only repair procedure after confirming the
+original tested artifacts and registry bytes when registry visibility is delayed
+beyond this bound.
+
 Python and Rust follow VerdiClip's release-please pattern: conventional commits
 update a release pull request, people review the proposed version and changelog,
 and merging that PR creates an immutable version tag and draft GitHub release.

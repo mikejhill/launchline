@@ -281,21 +281,27 @@ jobs:
         REQUIRE_COMPLETE: 'true'
       run: |
         python3 - <<'PY'
-        import hashlib,json,os,pathlib,urllib.error,urllib.request
+        import hashlib,json,os,pathlib,time,urllib.error,urllib.request
         version=os.environ['VERSION']
         expected={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in pathlib.Path('release/dist').iterdir() if p.is_file()}
-        try:
-            with urllib.request.urlopen('https://pypi.org/pypi/launchline/'+version+'/json',timeout=30) as response:
-                published=json.load(response)
-        except urllib.error.HTTPError as error:
-            if error.code != 404 or os.environ.get('REQUIRE_COMPLETE') == 'true': raise
-        else:
-            if published['info']['version'] != version: raise ValueError('Registry version mismatch')
-            for artifact in published['urls']:
-                if artifact['filename'] not in expected: raise ValueError('Unexpected existing distribution')
-                if artifact['digests']['sha256'] != expected[artifact['filename']]: raise ValueError('Conflicting published distribution')
-            if os.environ.get('REQUIRE_COMPLETE') == 'true' and {item['filename'] for item in published['urls']} != set(expected):
-                raise ValueError('Published distributions are incomplete')
+        for attempt in range(12):
+            try:
+                with urllib.request.urlopen('https://pypi.org/pypi/launchline/'+version+'/json',timeout=30) as response:
+                    published=json.load(response)
+            except urllib.error.HTTPError as error:
+                if error.code != 404: raise
+                pending='Registry version is not visible yet'
+            else:
+                if published['info']['version'] != version: raise ValueError('Registry version mismatch')
+                for artifact in published['urls']:
+                    if artifact['filename'] not in expected: raise ValueError('Unexpected existing distribution')
+                    if artifact['digests']['sha256'] != expected[artifact['filename']]: raise ValueError('Conflicting published distribution')
+                if {item['filename'] for item in published['urls']} == set(expected):
+                    break
+                pending='Published distributions are incomplete'
+            if attempt == 11: raise ValueError(pending+' after bounded registry readback')
+            print(pending+'; retrying read-only verification in 10 seconds',flush=True)
+            time.sleep(10)
         PY
     name: Pypi
   attest:
