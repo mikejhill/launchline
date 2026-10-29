@@ -137,14 +137,12 @@ class ProcessTree:
             except PermissionError:
                 # Darwin can retain an all-zombie group briefly: killpg filters
                 # zombies out, then reports EPERM when no live member was found.
-                # Reap our leader and retry only this exited-child case. Genuine
-                # permission failures remain errors, including persistent EPERM.
-                if (
-                    sys.platform != "darwin"
-                    or self._process.poll() is None
-                    or attempt == 9
-                ):
+                # The leader may not yet be waitable when that transition starts.
+                # Reap it when possible, without treating persistent EPERM as a
+                # successful cleanup or relaxing the process-group boundary.
+                if sys.platform != "darwin" or attempt == 9:
                     raise
+                self._process.poll()
                 time.sleep(0.01)
             else:
                 return
