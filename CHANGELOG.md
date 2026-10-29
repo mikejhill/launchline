@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2](https://github.com/mikejhill/launchline/compare/v0.4.1...v0.4.2) (2026-10-29)
+
+
+### Fixed
+
+* retry transient Darwin provider group cleanup ([#7](https://github.com/mikejhill/launchline/issues/7)) ([0b6f4db](https://github.com/mikejhill/launchline/commit/0b6f4db4c4b1166aecbe504bb1796b901049032a))
+
 ## [Unreleased]
 
 ## [0.4.1] - 2026-10-25
