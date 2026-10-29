@@ -1,3 +1,8 @@
+> This matrix preserves the original modernization checkpoint. For current
+> distribution and reviewed release behavior, see [the release process](releasing.md).
+> Python PR #1 has since been reconciled and closed as superseded; the Rust
+> download wrapper is historical tooling and current Rust releases use crates.io.
+
 # Shared compatibility contract
 
 Baseline: Python `904ace1`, Rust `109a68b`. Modernized together on MHILL-LAPTOP.
