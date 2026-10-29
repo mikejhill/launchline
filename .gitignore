@@ -267,3 +267,6 @@ release-changelog.md
 release-notes.md
 release-manifest.json
 SHA256SUMS
+
+# Owned asynchronous campaign output
+mutation-results/

@@ -35,7 +35,7 @@ VerdiClip checks for held runs and dispatches CI as a fallback. LaunchLine uses
 that dispatch path directly, without approving a PR or a held workflow run. The
 release job verifies the returned PR's repository, branch, open state and main
 target, then dispatches `ci.yml` with its head SHA. Every matrix checkout verifies
-that SHA before running the full format/lint/type/test/build/package/mutation
+that SHA before running the full format/lint/type/test/build/package
 checks. If the branch moves before checkout, the check fails; the next
 release-please update dispatches the new head.
 
@@ -121,3 +121,9 @@ longer calls them.
 References: [token event behavior](https://github.com/googleapis/release-please-action#other-actions-on-release-please-prs),
 [manifest bootstrap](https://github.com/googleapis/release-please/blob/main/docs/manifest-releaser.md#bootstrapping),
 [dynamic Python updater](https://github.com/googleapis/release-please/blob/main/src/updaters/python/pyproject-toml.ts).
+
+## Independent mutation campaigns
+
+Mutation execution is asynchronous and is not a PR/release dependency.
+All other source, package, provenance and registry checks remain intact.
+See [mutation policy and durable alerts](mutation-testing.md).

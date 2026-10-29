@@ -1,0 +1,122 @@
+{
+  "schema": 1,
+  "language": "python",
+  "required_score": 100,
+  "threshold_basis": "Preserves the existing harness assertion that every seeded mutant is killed.",
+  "environment": {
+    "os": "windows-latest",
+    "python": "3.13"
+  },
+  "suites": [
+    {
+      "name": "baseline",
+      "script": "scripts/mutation_check.py",
+      "report": "docs/validation/mutation.json",
+      "population": [
+        {
+          "source": "src/launchline/fuzzy.py",
+          "mutant": "base-score"
+        },
+        {
+          "source": "src/launchline/fuzzy.py",
+          "mutant": "adjacency"
+        },
+        {
+          "source": "src/launchline/fuzzy.py",
+          "mutant": "word-boundary"
+        },
+        {
+          "source": "src/launchline/ui.py",
+          "mutant": "repeated-display-copy"
+        },
+        {
+          "source": "src/launchline/ui.py",
+          "mutant": "stale-filter-snapshot"
+        },
+        {
+          "source": "src/launchline/ui.py",
+          "mutant": "offscreen-name-alignment"
+        },
+        {
+          "source": "src/launchline/fuzzy.py",
+          "mutant": "case-fold"
+        },
+        {
+          "source": "src/launchline/fuzzy.py",
+          "mutant": "no-match"
+        },
+        {
+          "source": "src/launchline/config.py",
+          "mutant": "required-name"
+        },
+        {
+          "source": "src/launchline/config.py",
+          "mutant": "exit-policy"
+        },
+        {
+          "source": "src/launchline/config.py",
+          "mutant": "scalar-types"
+        },
+        {
+          "source": "src/launchline/config.py",
+          "mutant": "directory-kind"
+        },
+        {
+          "source": "src/launchline/runner.py",
+          "mutant": "environment-overlay"
+        },
+        {
+          "source": "src/launchline/runner.py",
+          "mutant": "child-exit-code"
+        },
+        {
+          "source": "src/launchline/ui.py",
+          "mutant": "numeric-setting"
+        }
+      ]
+    },
+    {
+      "name": "menus",
+      "script": "scripts/mutate_menus.py",
+      "report": "docs/validation/menu-mutation.json",
+      "population": [
+        {
+          "source": "src/launchline/menus.py",
+          "mutant": "cache-reuse"
+        },
+        {
+          "source": "src/launchline/menus.py",
+          "mutant": "return-refresh"
+        },
+        {
+          "source": "src/launchline/menus.py",
+          "mutant": "retain-snapshot"
+        },
+        {
+          "source": "src/launchline/menus.py",
+          "mutant": "changed-child"
+        },
+        {
+          "source": "src/launchline/menus.py",
+          "mutant": "cache-budget"
+        },
+        {
+          "source": "src/launchline/config.py",
+          "mutant": "nesting-limit"
+        },
+        {
+          "source": "src/launchline/config.py",
+          "mutant": "unique-ids"
+        },
+        {
+          "source": "src/launchline/providers.py",
+          "mutant": "output-limit"
+        },
+        {
+          "source": "src/launchline/providers.py",
+          "mutant": "deadline"
+        }
+      ]
+    }
+  ]
+}
