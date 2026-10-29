@@ -266,7 +266,12 @@ class TestReleaseArchitecture:
             )
         assert workflow["jobs"]["attest"]["needs"] == "build"
         registry_steps = workflow["jobs"]["pypi"]["steps"]
-        assert registry_steps[-1]["run"] == registry_steps[1]["run"]
+        for step in (registry_steps[1], registry_steps[-1]):
+            assert "Registry version mismatch" in step["run"]
+            assert "Unexpected existing distribution" in step["run"]
+            assert "Conflicting published distribution" in step["run"]
+        assert "time.sleep" not in registry_steps[1]["run"]
+        assert "for attempt in range(12)" in registry_steps[-1]["run"]
         assert registry_steps[-1]["env"]["REQUIRE_COMPLETE"] == "true"
         assert (
             "scripts/release_artifacts.py"
